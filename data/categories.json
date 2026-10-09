@@ -1,0 +1,26 @@
+{
+  "version": "1.0",
+  "categories": [
+    "deadlines",
+    "eligibility",
+    "legal_and_regulatory",
+    "licenses_and_certifications",
+    "financial_capacity",
+    "relevant_experience",
+    "personnel",
+    "technical_mandatory",
+    "quality",
+    "submission",
+    "guarantee",
+    "insurance",
+    "evaluation",
+    "implementation",
+    "service_levels",
+    "cybersecurity",
+    "contract",
+    "forms_and_documents",
+    "post_award",
+    "other"
+  ],
+  "note": "The list supports display and normalization. It is not a closed model vocabulary."
+}

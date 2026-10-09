@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/tenderfit.js": {
+      "includeFiles": "ai/mapper-v1.2/**",
+      "maxDuration": 300
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "units": [
+    { "code": "ILS", "kind": "currency", "label_he": "ש״ח" },
+    { "code": "USD", "kind": "currency", "label_he": "דולר" },
+    { "code": "percent", "kind": "ratio", "label_he": "אחוז" },
+    { "code": "years", "kind": "duration", "label_he": "שנים" },
+    { "code": "months", "kind": "duration", "label_he": "חודשים" },
+    { "code": "days", "kind": "duration", "label_he": "ימים" },
+    { "code": "hours", "kind": "duration", "label_he": "שעות" },
+    { "code": "projects", "kind": "count", "label_he": "פרויקטים" },
+    { "code": "clients", "kind": "count", "label_he": "לקוחות" },
+    { "code": "systems", "kind": "count", "label_he": "מערכות" },
+    { "code": "sites", "kind": "count", "label_he": "אתרים" },
+    { "code": "diners", "kind": "count", "label_he": "סועדים" },
+    { "code": "convictions", "kind": "count", "label_he": "הרשעות" },
+    { "code": "sanctions", "kind": "count", "label_he": "עיצומים" },
+    { "code": "fines", "kind": "count", "label_he": "קנסות" },
+    { "code": "MB", "kind": "data_size", "label_he": "מגה־בייט" },
+    { "code": "SMS", "kind": "throughput", "label_he": "מסרונים" }
+  ],
+  "conversions": []
+}

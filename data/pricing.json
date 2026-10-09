@@ -1,0 +1,18 @@
+{
+  "version": "1.0",
+  "currency": "USD",
+  "model": "gemini-3.1-pro-preview",
+  "token_tiers": [
+    {
+      "maximum_input_tokens": 200000,
+      "input_usd_per_million": 2,
+      "output_and_thought_usd_per_million": 12
+    },
+    {
+      "minimum_input_tokens": 200001,
+      "input_usd_per_million": 4,
+      "output_and_thought_usd_per_million": 18
+    }
+  ],
+  "note": "Conservative estimate; actual billing can differ because of caching or billing implementation."
+}
