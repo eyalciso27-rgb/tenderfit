@@ -9,7 +9,7 @@ const API_BASE = process.env.M2_API_BASE ?? "https://tenderfit-dun.vercel.app";
 const EMAIL = process.env.M2_TEST_EMAIL;
 const PASSWORD = process.env.M2_TEST_PASSWORD;
 const PDF_PATH = process.argv[2];
-const K = 5;
+const K = 8;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 if (!EMAIL || !PASSWORD || !PDF_PATH) throw new Error("M2_TEST_EMAIL, M2_TEST_PASSWORD and a PDF path are required.");

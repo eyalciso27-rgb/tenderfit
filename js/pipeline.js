@@ -4,7 +4,7 @@ import { supabase } from "./supabase.js";
 const POLL_INTERVAL_MS = 10_000;
 const CONFLICT_RETRY_MS = 1_200;
 const MAX_WAIT_MS = 15 * 60_000;
-export const EXTRACT_CONCURRENCY = 5;
+export const EXTRACT_CONCURRENCY = 8;
 const RETRYABLE_REGION_ERRORS = new Set(["extract_failed", "extract_timeout", "extract_schema_invalid", "invalid_model_json"]);
 
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));

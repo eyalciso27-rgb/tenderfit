@@ -25,6 +25,7 @@ const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const FILE_POLL_INTERVAL_MS = 2_000;
 const FILE_PROCESSING_TIMEOUT_MS = 240_000;
 const INTERACTION_TIMEOUT_MS = 15 * 60_000;
+const STALE_RUNNING_MS = 330_000;
 const PENDING_INTERACTION_STATUSES = new Set(["queued", "in_progress"]);
 
 class ApiError extends Error {
@@ -150,6 +151,20 @@ function cloneProcessing(tender) {
 
 function stepRecord(tender, step) {
   return tender.processing?.steps?.[step] ?? { status: "pending", attempts: 0, error: null };
+}
+
+export function isPendingInteractionExpired(status, sentAt, now = Date.now()) {
+  const sentAtMs = Date.parse(sentAt ?? "");
+  return PENDING_INTERACTION_STATUSES.has(status)
+    && Number.isFinite(sentAtMs)
+    && now - sentAtMs >= INTERACTION_TIMEOUT_MS;
+}
+
+export function isStaleRunning(record, now = Date.now()) {
+  const startedAtMs = Date.parse(record?.started_at ?? "");
+  return record?.status === "running"
+    && Number.isFinite(startedAtMs)
+    && now - startedAtMs >= STALE_RUNNING_MS;
 }
 
 function withStep(tender, step, changes) {
@@ -473,11 +488,6 @@ async function pollMap(supabase, tender, baseline) {
   if (!current.interaction_id || !current.sent_at) {
     throw new ApiError(500, "map_state_invalid", "סטטוס המיפוי אינו תקין.");
   }
-  if (Date.now() - Date.parse(current.sent_at) >= INTERACTION_TIMEOUT_MS) {
-    await failMapInteraction(supabase, tender, null, "mapper_timeout");
-    throw new ApiError(502, "mapper_timeout", "המיפוי לא הסתיים בתוך 15 דקות. אפשר לנסות שוב.");
-  }
-
   let interaction;
   try {
     interaction = await createGeminiClient().interactions.get(current.interaction_id);
@@ -493,6 +503,10 @@ async function pollMap(supabase, tender, baseline) {
     );
   }
   if (PENDING_INTERACTION_STATUSES.has(interaction.status)) {
+    if (isPendingInteractionExpired(interaction.status, current.sent_at)) {
+      await failMapInteraction(supabase, tender, interaction, "mapper_timeout");
+      throw new ApiError(502, "mapper_timeout", "המיפוי לא הסתיים בתוך 15 דקות. אפשר לנסות שוב.");
+    }
     return {
       tender,
       waiting: true,
@@ -617,7 +631,7 @@ async function runMap(supabase, tender) {
     };
   }
   if (current.status === "waiting") return pollMap(supabase, tender, baseline);
-  if (current.status === "running") {
+  if (current.status === "running" && !isStaleRunning(current)) {
     throw new ApiError(409, "step_already_running", "המיפוי כבר רץ.");
   }
   return startMap(supabase, tender, baseline);
@@ -706,12 +720,12 @@ async function startMetadata(supabase, tender, baseline) {
 async function pollMetadata(supabase, tender, baseline) {
   const current = stepRecord(tender, "metadata");
   if (!current.interaction_id || !current.sent_at) throw new ApiError(500, "metadata_state_invalid", "סטטוס חילוץ הפרטים אינו תקין.");
-  if (Date.now() - Date.parse(current.sent_at) >= INTERACTION_TIMEOUT_MS) {
-    await markStepFailed(supabase, tender, "metadata", "metadata_timeout");
-    throw new ApiError(502, "metadata_timeout", "חילוץ פרטי המכרז לא הסתיים בתוך 15 דקות.");
-  }
   const interaction = await createGeminiClient().interactions.get(current.interaction_id);
   if (PENDING_INTERACTION_STATUSES.has(interaction.status)) {
+    if (isPendingInteractionExpired(interaction.status, current.sent_at)) {
+      await markStepFailed(supabase, tender, "metadata", "metadata_timeout");
+      throw new ApiError(502, "metadata_timeout", "חילוץ פרטי המכרז לא הסתיים בתוך 15 דקות.");
+    }
     return { tender, waiting: true, data: waitingData(tender, interaction, current.sent_at) };
   }
   if (interaction.status !== "completed") {
@@ -752,7 +766,7 @@ async function runMetadata(supabase, tender) {
   const current = stepRecord(tender, "metadata");
   if (current.status === "done") return { tender, data: { tender_id: tender.id, output: tender.metadata, reused: true } };
   if (current.status === "waiting") return pollMetadata(supabase, tender, baseline);
-  if (current.status === "running") throw new ApiError(409, "step_already_running", "חילוץ פרטי המכרז כבר רץ.");
+  if (current.status === "running" && !isStaleRunning(current)) throw new ApiError(409, "step_already_running", "חילוץ פרטי המכרז כבר רץ.");
   return startMetadata(supabase, tender, baseline);
 }
 
@@ -808,12 +822,12 @@ async function startExtract(supabase, tender, region, baseline) {
 async function pollExtract(supabase, tender, region, baseline) {
   const current = regionRecord(tender, region.region_id);
   if (!current.interaction_id || !current.sent_at) throw new ApiError(500, "extract_state_invalid", "סטטוס חילוץ האזור אינו תקין.");
-  if (Date.now() - Date.parse(current.sent_at) >= INTERACTION_TIMEOUT_MS) {
-    await markRegionFailed(supabase, tender, region.region_id, "extract_timeout");
-    throw new ApiError(502, "extract_timeout", "חילוץ האזור לא הסתיים בתוך 15 דקות.");
-  }
   const interaction = await createGeminiClient().interactions.get(current.interaction_id);
   if (PENDING_INTERACTION_STATUSES.has(interaction.status)) {
+    if (isPendingInteractionExpired(interaction.status, current.sent_at)) {
+      await markRegionFailed(supabase, tender, region.region_id, "extract_timeout");
+      throw new ApiError(502, "extract_timeout", "חילוץ האזור לא הסתיים בתוך 15 דקות.");
+    }
     return { tender, waiting: true, data: waitingData(tender, interaction, current.sent_at, { region_id: region.region_id }) };
   }
   if (interaction.status !== "completed") {
@@ -858,7 +872,7 @@ async function runExtract(supabase, tender, body) {
   const current = regionRecord(tender, regionId);
   if (current.status === "done") return { tender, data: { tender_id: tender.id, region_id: regionId, output: tender.region_outputs?.[regionId], reused: true } };
   if (current.status === "waiting") return pollExtract(supabase, tender, region, await loadExtractorBaseline());
-  if (current.status === "running") throw new ApiError(409, "region_already_running", "חילוץ האזור כבר רץ.");
+  if (current.status === "running" && !isStaleRunning(current)) throw new ApiError(409, "region_already_running", "חילוץ האזור כבר רץ.");
   return startExtract(supabase, tender, region, await loadExtractorBaseline());
 }
 

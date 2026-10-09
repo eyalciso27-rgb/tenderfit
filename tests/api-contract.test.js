@@ -5,6 +5,8 @@ import handler, {
   ALLOWED_STEPS,
   createInlinePdfDocument,
   isGeminiBlobstoreFileError,
+  isPendingInteractionExpired,
+  isStaleRunning,
 } from "../api/tenderfit.js";
 
 class MockResponse {
@@ -133,4 +135,18 @@ test("the approved map workaround creates an inline PDF document input", () => {
     data: "JVBERi0=",
     mime_type: "application/pdf",
   });
+});
+
+test("resume checks Gemini status before applying the 15 minute timeout", () => {
+  const sentAt = "2026-10-09T10:00:00.000Z";
+  const now = Date.parse("2026-10-09T10:16:00.000Z");
+  assert.equal(isPendingInteractionExpired("in_progress", sentAt, now), true);
+  assert.equal(isPendingInteractionExpired("completed", sentAt, now), false);
+  assert.equal(isPendingInteractionExpired("failed", sentAt, now), false);
+});
+
+test("a running lock is reclaimable only after 330 seconds", () => {
+  const startedAt = "2026-10-09T10:00:00.000Z";
+  assert.equal(isStaleRunning({ status: "running", started_at: startedAt }, Date.parse("2026-10-09T10:05:29.000Z")), false);
+  assert.equal(isStaleRunning({ status: "running", started_at: startedAt }, Date.parse("2026-10-09T10:05:30.000Z")), true);
 });
