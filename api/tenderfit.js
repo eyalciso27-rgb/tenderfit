@@ -631,7 +631,14 @@ function parseAndValidateModelJson(interaction, schema, errorCode, errorMessage)
     throw new ApiError(502, "invalid_model_json", "פלט המודל לא היה JSON תקין.");
   }
   const ajv = new Ajv({ allErrors: true, strict: false, allowUnionTypes: true });
-  if (!ajv.compile(schema)(parsed)) throw new ApiError(502, errorCode, errorMessage);
+  const validate = ajv.compile(schema);
+  if (!validate(parsed)) {
+    console.error("Model schema validation failed", {
+      errorCode,
+      errors: (validate.errors ?? []).map(({ instancePath, schemaPath, keyword, message }) => ({ instancePath, schemaPath, keyword, message })),
+    });
+    throw new ApiError(502, errorCode, errorMessage);
+  }
   return parsed;
 }
 
