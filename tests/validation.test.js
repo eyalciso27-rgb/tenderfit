@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { conservativeDedup } from "../lib/validate.js";
+import { conservativeDedup, prepareAjvSchema } from "../lib/validate.js";
 
 function requirement(id, quote = "נדרש רישיון תקף") {
   return {
@@ -22,4 +22,10 @@ test("similar facts with different quotes are retained and flagged", () => {
   assert.equal(result.requirements.length, 2);
   assert.equal(result.log[0].action, "kept_suspected");
   assert.equal(result.requirements.every((item) => item.requires_manual_review), true);
+});
+
+test("OpenAPI nullable enums are converted for Ajv without widening non-null values", () => {
+  const prepared = prepareAjvSchema({ type: "string", nullable: true, enum: ["each", "all"] });
+  assert.deepEqual(prepared.enum, ["each", "all", null]);
+  assert.deepEqual(prepared.type, "string");
 });

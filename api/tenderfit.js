@@ -8,7 +8,7 @@ import { loadExtractorBaseline, loadMapperBaseline, loadMetadataBaseline } from 
 import { assertAiBudgetAvailable, BudgetExceededError } from "../lib/budget.js";
 import { fillExtractorPrompt, getRegion, prefixRegionRequirementIds } from "../lib/extractor.js";
 import { estimateGeminiCost } from "../lib/pricing.js";
-import { conservativeDedup, validateRequirements } from "../lib/validate.js";
+import { conservativeDedup, prepareAjvSchema, validateRequirements } from "../lib/validate.js";
 
 export const ALLOWED_STEPS = Object.freeze([
   "upload",
@@ -385,7 +385,7 @@ async function completeMap(supabase, tender, interaction, baseline) {
   }
 
   const ajv = new Ajv({ allErrors: true, strict: false, allowUnionTypes: true });
-  const validate = ajv.compile(baseline.schema);
+  const validate = ajv.compile(prepareAjvSchema(baseline.schema));
   if (!validate(parsed)) {
     throw new ApiError(502, "mapper_schema_invalid", "פלט המיפוי לא תואם למבנה המאושר.");
   }
@@ -631,7 +631,7 @@ function parseAndValidateModelJson(interaction, schema, errorCode, errorMessage)
     throw new ApiError(502, "invalid_model_json", "פלט המודל לא היה JSON תקין.");
   }
   const ajv = new Ajv({ allErrors: true, strict: false, allowUnionTypes: true });
-  const validate = ajv.compile(schema);
+  const validate = ajv.compile(prepareAjvSchema(schema));
   if (!validate(parsed)) {
     console.error("Model schema validation failed", {
       errorCode,
