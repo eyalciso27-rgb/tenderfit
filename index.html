@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="TenderFit — שלד בדיקה מוגן לניתוח מכרזים">
+    <title>TenderFit | כניסה</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+  </head>
+  <body>
+    <main class="page-shell">
+      <section id="login-view" class="login-layout" aria-labelledby="login-title">
+        <div class="brand" aria-label="TenderFit">
+          <span class="brand-mark" aria-hidden="true">TF</span>
+          <span>TenderFit</span>
+        </div>
+
+        <div class="card login-card">
+          <header class="card-heading">
+            <h1 id="login-title">כניסה</h1>
+            <p>ניתוח והתאמת מכרזים לעסק שלך</p>
+          </header>
+
+          <form id="login-form" novalidate>
+            <label for="email">אימייל</label>
+            <input id="email" name="email" type="email" inputmode="email" autocomplete="username" placeholder="name@example.com" required>
+
+            <label for="password">סיסמה</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+            <button id="login-button" class="button button-primary" type="submit">כניסה</button>
+            <p id="login-message" class="message" role="alert" aria-live="polite"></p>
+          </form>
+        </div>
+      </section>
+
+      <section id="app-view" class="protected-layout" aria-labelledby="test-title" hidden>
+        <header class="app-header">
+          <div class="brand">
+            <span class="brand-mark" aria-hidden="true">TF</span>
+            <span>TenderFit</span>
+          </div>
+          <button id="logout-button" class="button button-text" type="button">התנתק</button>
+        </header>
+
+        <div class="content-column">
+          <div class="card welcome-card">
+            <p class="eyebrow">חיבור מוגן פעיל</p>
+            <h1 id="test-title">שלום, <span id="business-name">טוען…</span></h1>
+            <p>שם העסק נקרא ישירות מ־Supabase בהרשאת המשתמש ובהגנת RLS.</p>
+          </div>
+
+          <div class="card test-card">
+            <header class="card-heading">
+              <h2>בדיקת Walking Skeleton</h2>
+              <p>בחר את מכרז <bdi>20/2026</bdi>, הרץ העלאה, ואחריה מיפוי Background.</p>
+            </header>
+
+            <label for="tender-select">מכרז לבדיקה</label>
+            <select id="tender-select" disabled>
+              <option>טוען מכרזים…</option>
+            </select>
+
+            <div class="button-row">
+              <button id="upload-button" class="button button-secondary" type="button" disabled>
+                <span aria-hidden="true">↑</span> בדוק upload
+              </button>
+              <button id="map-button" class="button button-primary" type="button" disabled>
+                <span aria-hidden="true">▶</span> בדוק map
+              </button>
+            </div>
+
+            <div id="run-status" class="status-box" aria-live="polite">
+              <span aria-hidden="true">?</span>
+              <span>טרם הופעלה בדיקה.</span>
+            </div>
+            <pre id="api-output" class="api-output" dir="ltr" tabindex="0">{}</pre>
+          </div>
+
+          <p class="privacy-note">ללא כניסה לא נקראים נתוני עסק או מכרז.</p>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="js/auth.js"></script>
+  </body>
+</html>
