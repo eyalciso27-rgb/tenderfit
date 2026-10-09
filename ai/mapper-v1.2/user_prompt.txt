@@ -1,0 +1,24 @@
+Map the complete attached tender for TenderFit.
+
+Perform a blind full-document Requirement Mapping pass.
+
+Do not assume any predefined page range, section name, number of regions, number of requirements or expected answer.
+
+Read the entire tender and identify every complete logical region that contains requirement-bearing content that should later be sent to the TenderFit Requirement Extractor.
+
+For each region:
+- determine its true start and end boundaries
+- classify its primary purpose
+- summarize what requirement-bearing content it contains
+- identify important subtopics
+- indicate structural characteristics such as tables, thresholds, deadlines, conditions, documents and post-award obligations
+- provide short exact source evidence
+- flag uncertainty or boundary ambiguity
+
+Do not extract the full atomic requirement list. This task is mapping and source-scope discovery.
+
+Before returning, re-scan the complete tender and verify that no requirement-bearing region was omitted.
+
+Return only the configured structured output.
+
+Experiment version: Requirement Mapper V1.2 — Blind Full-Tender Mapping with structural semantic segmentation

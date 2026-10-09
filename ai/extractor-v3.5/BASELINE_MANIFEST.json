@@ -1,0 +1,30 @@
+{
+  "version": "v3.5",
+  "runtime_source": "reconstructed_from_documented_v3.5_then_regression_validated",
+  "byte_for_byte_original_raw_available": false,
+  "frozen_utc": "2026-10-08T20:24:15.144443+00:00",
+  "model": "gemini-3.1-pro-preview",
+  "thinking_level": "high",
+  "temperature": 0.1,
+  "structured_output": true,
+  "external_tools": false,
+  "runtime_files": {
+    "system_instructions.txt": "918bdafec89090a1768ca972275b68c10bb82970c8298824051d835d1261095a",
+    "user_prompt.txt": "7729f13d8ce413f92602000a518061acce60713e464eaa62434a74d02ed85f0b",
+    "structured_output_schema.json": "26b082edb7ab001f539f5817b64c40214d59686d017dbac860d3d8461a710a33",
+    "settings.json": "dac64d0f412b682c32513e127172a2ac54fdcefef5f5078a6b57ed5b730ac329"
+  },
+  "validation": {
+    "summary_file": "../../extractor_runs/v3.5-clean_final_validation/FINAL_VALIDATION_SUMMARY.json",
+    "accepted_attempt": 2,
+    "overall_pass": true,
+    "gate_policy": "schema + source-row coverage + critical semantics + required parent/child atomicity + technical manual-review safety"
+  },
+  "provenance": {
+    "cleaning_report": "provenance/CLEANING_REPORT.md",
+    "system_diff": "provenance/system_full.diff",
+    "schema_diff": "provenance/schema_full.diff",
+    "user_diff": "provenance/user_full.diff"
+  },
+  "production_rule": "Runtime must use these frozen files. Any Prompt/Schema/Model/Temperature change creates a new version and requires regression before promotion."
+}

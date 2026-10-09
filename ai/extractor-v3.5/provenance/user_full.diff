@@ -1,0 +1,399 @@
+--- documented_user_section_raw.md
++++ user_prompt.txt
+@@ -1,5 +1,3 @@
+-ה-Prompt הבא הוא Prompt ה-Benchmark ששימש באזור הבדיקה. חשוב: בעבודה על ה-Extractor עצמו הועברו אליו גבולות האזור (Region/Pages), אבל גבולות אלה **לא הוזנו ידנית בשלב ה-Requirement Mapping**; ה-Mapper קיבל קודם את המכרז המלא וזיהה בעצמו את האזור. בפרודקשן ה-Requirement Mapper אמור לספק ל-Extractor את גבולות האזור באופן דינמי. יתר כללי השלמות צריכים להישמר.
+-
+ Analyze ALL requirement-bearing content in the following region of the attached tender.
+ 
+ Region:
+@@ -34,91 +32,91 @@
+ 
+ TASK
+ 
+-1\. Read ALL content on pages 25–28.
+-
+-2\. Identify ALL requirement-bearing content within these pages.
+-
+-3\. Extract every mandatory requirement contained in the requested region.
+-
+-4\. Do not skip:
+-
+-\- numbered rows
+-
+-\- table rows
+-
+-\- numbered sub-items
+-
+-\- bullet items
+-
+-\- nested items
+-
+-\- independent clauses
+-
+-\- numeric thresholds
+-
+-\- technical capabilities
+-
+-\- functional capabilities
+-
+-\- conditions
+-
+-\- exceptions
+-
+-\- alternatives
+-
+-\- qualifiers
+-
+-5\. Treat every independently testable source condition as a candidate atomic requirement.
+-
+-6\. Where one source item contains multiple independently testable requirements:
++1. Read ALL content on pages 25–28.
++
++2. Identify ALL requirement-bearing content within these pages.
++
++3. Extract every mandatory requirement contained in the requested region.
++
++4. Do not skip:
++
++- numbered rows
++
++- table rows
++
++- numbered sub-items
++
++- bullet items
++
++- nested items
++
++- independent clauses
++
++- numeric thresholds
++
++- technical capabilities
++
++- functional capabilities
++
++- conditions
++
++- exceptions
++
++- alternatives
++
++- qualifiers
++
++5. Treat every independently testable source condition as a candidate atomic requirement.
++
++6. Where one source item contains multiple independently testable requirements:
+ 
+ create a parent requirement where useful,
+ 
+ and create separate atomic child requirements.
+ 
+-7\. Preserve:
+-
+-\- AND logic
+-
+-\- OR logic
+-
+-\- conditional logic
+-
+-\- alternatives
+-
+-\- exceptions
+-
+-\- qualifiers
+-
+-\- applicability conditions
+-
+-\- numeric meaning
+-
+-8\. Do not summarize several independently testable requirements into one generalized requirement.
++7. Preserve:
++
++- AND logic
++
++- OR logic
++
++- conditional logic
++
++- alternatives
++
++- exceptions
++
++- qualifiers
++
++- applicability conditions
++
++- numeric meaning
++
++8. Do not summarize several independently testable requirements into one generalized requirement.
+ 
+ ENUMERATED CONTENT
+ 
+-9\. Whenever the source contains a numbered or enumerated list:
++9. Whenever the source contains a numbered or enumerated list:
+ 
+ extract every independently testable item.
+ 
+-10\. Before finalizing an enumerated source item:
++10. Before finalizing an enumerated source item:
+ 
+ count the source sub-items
+ 
+ and verify that every independently testable sub-item has been represented.
+ 
+-11\. If one enumerated sub-item itself contains several independently testable requirements:
++11. If one enumerated sub-item itself contains several independently testable requirements:
+ 
+ split it further when necessary.
+ 
+ TECHNICAL REQUIREMENT CLASSIFICATION
+ 
+-12\. Mandatory technical and functional requirements in this region normally use:
++12. Mandatory technical and functional requirements in this region normally use:
+ 
+ stage = "evaluation"
+ 
+-13\. Do NOT classify a technical capability as:
++13. Do NOT classify a technical capability as:
+ 
+ requirement_target = "evaluation_rule"
+ 
+@@ -134,35 +132,35 @@
+ 
+ Use evaluation_rule only for actual evaluation logic such as:
+ 
+-\- scoring formulas
+-
+-\- evaluation thresholds
+-
+-\- ranking rules
+-
+-\- quality-score rules
+-
+-\- progression rules
++- scoring formulas
++
++- evaluation thresholds
++
++- ranking rules
++
++- quality-score rules
++
++- progression rules
+ 
+ CODE COMPARABILITY
+ 
+-14\. Apply the strict code_comparable rules from the System Instructions.
+-
+-15\. Do not mark a technical capability code_comparable = true merely because a boolean business_fact_key can be created.
+-
+-16\. Where a technical capability requires:
+-
+-\- demonstration
+-
+-\- testing
+-
+-\- documentation review
+-
+-\- integration review
+-
+-\- technical review
+-
+-\- human verification
++14. Apply the strict code_comparable rules from the System Instructions.
++
++15. Do not mark a technical capability code_comparable = true merely because a boolean business_fact_key can be created.
++
++16. Where a technical capability requires:
++
++- demonstration
++
++- testing
++
++- documentation review
++
++- integration review
++
++- technical review
++
++- human verification
+ 
+ normally use:
+ 
+@@ -174,7 +172,7 @@
+ 
+ NUMERIC REQUIREMENTS
+ 
+-17\. Extract every meaningful numeric requirement into:
++17. Extract every meaningful numeric requirement into:
+ 
+ value
+ 
+@@ -184,29 +182,29 @@
+ 
+ comparison_operator
+ 
+-18\. Do not choose comparison_operator only from the literal tender wording.
+-
+-19\. Determine what the related business_fact_key represents.
+-
+-20\. Determine which business-fact values should PASS.
+-
+-21\. Determine which business-fact values should FAIL.
+-
+-22\. Select comparison_operator accordingly.
+-
+-23\. For every numeric comparison:
++18. Do not choose comparison_operator only from the literal tender wording.
++
++19. Determine what the related business_fact_key represents.
++
++20. Determine which business-fact values should PASS.
++
++21. Determine which business-fact values should FAIL.
++
++22. Select comparison_operator accordingly.
++
++23. For every numeric comparison:
+ 
+ test mentally:
+ 
+-\- a value below the threshold
+-
+-\- the exact threshold
+-
+-\- a value above the threshold
++- a value below the threshold
++
++- the exact threshold
++
++- a value above the threshold
+ 
+ Verify that the structured operator preserves the intended compliance meaning.
+ 
+-24\. If the numeric comparison direction remains ambiguous:
++24. If the numeric comparison direction remains ambiguous:
+ 
+ do not guess.
+ 
+@@ -222,27 +220,27 @@
+ 
+ SOURCE FIDELITY
+ 
+-25\. Preserve unusual, suspicious or apparently incorrect source terminology.
+-
+-26\. Never silently correct technical terminology.
+-
+-27\. If source wording appears technically inconsistent:
+-
+-\- preserve the exact material source term
+-
+-\- set requires_manual_review = true
+-
+-\- reduce confidence where appropriate
+-
+-\- explain the issue in review_reason
+-
+-28\. requirement_text must not replace a material source term with a technically more logical alternative.
+-
+-29\. source_quote must contain exact source wording.
++25. Preserve unusual, suspicious or apparently incorrect source terminology.
++
++26. Never silently correct technical terminology.
++
++27. If source wording appears technically inconsistent:
++
++- preserve the exact material source term
++
++- set requires_manual_review = true
++
++- reduce confidence where appropriate
++
++- explain the issue in review_reason
++
++28. requirement_text must not replace a material source term with a technically more logical alternative.
++
++29. source_quote must contain exact source wording.
+ 
+ SOURCE TRACEABILITY
+ 
+-30\. Include source evidence whenever reliably available:
++30. Include source evidence whenever reliably available:
+ 
+ source_page
+ 
+@@ -260,49 +258,49 @@
+ 
+ cell_text
+ 
+-31\. row_index may be used only when the row number is reliably visible in the source.
+-
+-32\. Do not invent row numbering.
++31. row_index may be used only when the row number is reliably visible in the source.
++
++32. Do not invent row numbering.
+ 
+ OUTPUT COMPRESSION
+ 
+-33\. Avoid unnecessary repetition.
+-
+-34\. Parent requirements may contain the full table-cell text in:
++33. Avoid unnecessary repetition.
++
++34. Parent requirements may contain the full table-cell text in:
+ 
+ cell_text
+ 
+-35\. Atomic children should normally use:
++35. Atomic children should normally use:
+ 
+ cell_text = null
+ 
+ when the full source cell is already preserved by the parent.
+ 
+-36\. For atomic children:
++36. For atomic children:
+ 
+ use the smallest exact source fragment necessary in:
+ 
+ source_quote
+ 
+-37\. Do not duplicate an entire long parent source cell inside every child.
+-
+-38\. Compression may remove redundancy only.
++37. Do not duplicate an entire long parent source cell inside every child.
++
++38. Compression may remove redundancy only.
+ 
+ Never remove:
+ 
+-\- requirements
+-
+-\- atomic children
+-
+-\- logic
+-
+-\- numeric values
+-
+-\- conditions
+-
+-\- exceptions
+-
+-\- source evidence
++- requirements
++
++- atomic children
++
++- logic
++
++- numeric values
++
++- conditions
++
++- exceptions
++
++- source evidence
+ 
+ MANDATORY COMPLETE-REGION VERIFICATION
+ 

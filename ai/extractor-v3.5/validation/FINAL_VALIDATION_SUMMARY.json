@@ -1,0 +1,50 @@
+{
+  "generated_utc": "2026-10-08T20:23:10.285485+00:00",
+  "extractor_version": "v3.5-clean",
+  "model": "gemini-3.1-pro-preview",
+  "thinking_level": "high",
+  "temperature": 0.1,
+  "accepted_attempt": 2,
+  "overall_pass": true,
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "api_or_parse_error",
+      "error_type": "APIConnectionError",
+      "error": "Server disconnected without sending a response."
+    },
+    {
+      "attempt": 2,
+      "status": "completed",
+      "interaction_status": "completed",
+      "pass": true,
+      "checks": {
+        "nonempty_output": true,
+        "schema_required_fields": true,
+        "unique_ids": true,
+        "valid_parent_refs": true,
+        "parents_not_code_comparable": true,
+        "all_rows_1_36": true,
+        "pages_25_28_only": true,
+        "source_quotes_present": true,
+        "40mb_semantics": true,
+        "speech_to_text_manual": true,
+        "row17_parent_child": true,
+        "row23_log_7_children": true,
+        "row31_whatsapp_chat_atomic": true,
+        "row35_smtp_api_atomic": true,
+        "technical_manual_review_safety": true
+      },
+      "requirement_count": 84,
+      "technical_safety_candidates": 66,
+      "technical_safety_bad_count": 0,
+      "technical_safety_bad_ids": []
+    }
+  ],
+  "runtime_hashes": {
+    "system_sha256": "918bdafec89090a1768ca972275b68c10bb82970c8298824051d835d1261095a",
+    "user_sha256": "7729f13d8ce413f92602000a518061acce60713e464eaa62434a74d02ed85f0b",
+    "schema_sha256": "26b082edb7ab001f539f5817b64c40214d59686d017dbac860d3d8461a710a33",
+    "settings_sha256": "dac64d0f412b682c32513e127172a2ac54fdcefef5f5078a6b57ed5b730ac329"
+  }
+}

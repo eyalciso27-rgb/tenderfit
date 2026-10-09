@@ -1,0 +1,353 @@
+ה-Prompt הבא הוא Prompt ה-Benchmark ששימש באזור הבדיקה. חשוב: בעבודה על ה-Extractor עצמו הועברו אליו גבולות האזור (Region/Pages), אבל גבולות אלה **לא הוזנו ידנית בשלב ה-Requirement Mapping**; ה-Mapper קיבל קודם את המכרז המלא וזיהה בעצמו את האזור. בפרודקשן ה-Requirement Mapper אמור לספק ל-Extractor את גבולות האזור באופן דינמי. יתר כללי השלמות צריכים להישמר.
+
+Analyze ALL requirement-bearing content in the following region of the attached tender.
+
+Region:
+
+נספח 1, סעיף 1 — דרישות חובה
+
+Pages:
+
+25–28
+
+IMPORTANT:
+
+Analyze the COMPLETE content of pages 25–28.
+
+Do NOT rely on a predefined number of source rows.
+
+Do NOT assume how many rows, requirements, sub-items or atomic requirements exist.
+
+The tender source itself determines the complete requirement set.
+
+REGION CONTEXT
+
+This region contains mandatory technical and functional requirements evaluated as part of a technical Go / No-Go evaluation stage.
+
+These requirements are not bidder eligibility threshold conditions merely because failure may cause rejection.
+
+QUALITY PRIORITY
+
+Accuracy, completeness, semantic fidelity and source fidelity are more important than speed or brevity.
+
+Take as much reasoning time as necessary.
+
+TASK
+
+1\. Read ALL content on pages 25–28.
+
+2\. Identify ALL requirement-bearing content within these pages.
+
+3\. Extract every mandatory requirement contained in the requested region.
+
+4\. Do not skip:
+
+\- numbered rows
+
+\- table rows
+
+\- numbered sub-items
+
+\- bullet items
+
+\- nested items
+
+\- independent clauses
+
+\- numeric thresholds
+
+\- technical capabilities
+
+\- functional capabilities
+
+\- conditions
+
+\- exceptions
+
+\- alternatives
+
+\- qualifiers
+
+5\. Treat every independently testable source condition as a candidate atomic requirement.
+
+6\. Where one source item contains multiple independently testable requirements:
+
+create a parent requirement where useful,
+
+and create separate atomic child requirements.
+
+7\. Preserve:
+
+\- AND logic
+
+\- OR logic
+
+\- conditional logic
+
+\- alternatives
+
+\- exceptions
+
+\- qualifiers
+
+\- applicability conditions
+
+\- numeric meaning
+
+8\. Do not summarize several independently testable requirements into one generalized requirement.
+
+ENUMERATED CONTENT
+
+9\. Whenever the source contains a numbered or enumerated list:
+
+extract every independently testable item.
+
+10\. Before finalizing an enumerated source item:
+
+count the source sub-items
+
+and verify that every independently testable sub-item has been represented.
+
+11\. If one enumerated sub-item itself contains several independently testable requirements:
+
+split it further when necessary.
+
+TECHNICAL REQUIREMENT CLASSIFICATION
+
+12\. Mandatory technical and functional requirements in this region normally use:
+
+stage = "evaluation"
+
+13\. Do NOT classify a technical capability as:
+
+requirement_target = "evaluation_rule"
+
+merely because it is evaluated during the evaluation stage.
+
+A capability of the proposed product or system normally represents:
+
+requirement_target = "business_fact"
+
+while:
+
+stage = "evaluation"
+
+Use evaluation_rule only for actual evaluation logic such as:
+
+\- scoring formulas
+
+\- evaluation thresholds
+
+\- ranking rules
+
+\- quality-score rules
+
+\- progression rules
+
+CODE COMPARABILITY
+
+14\. Apply the strict code_comparable rules from the System Instructions.
+
+15\. Do not mark a technical capability code_comparable = true merely because a boolean business_fact_key can be created.
+
+16\. Where a technical capability requires:
+
+\- demonstration
+
+\- testing
+
+\- documentation review
+
+\- integration review
+
+\- technical review
+
+\- human verification
+
+normally use:
+
+code_comparable = false
+
+and:
+
+requires_manual_review = true
+
+NUMERIC REQUIREMENTS
+
+17\. Extract every meaningful numeric requirement into:
+
+value
+
+value_secondary
+
+unit
+
+comparison_operator
+
+18\. Do not choose comparison_operator only from the literal tender wording.
+
+19\. Determine what the related business_fact_key represents.
+
+20\. Determine which business-fact values should PASS.
+
+21\. Determine which business-fact values should FAIL.
+
+22\. Select comparison_operator accordingly.
+
+23\. For every numeric comparison:
+
+test mentally:
+
+\- a value below the threshold
+
+\- the exact threshold
+
+\- a value above the threshold
+
+Verify that the structured operator preserves the intended compliance meaning.
+
+24\. If the numeric comparison direction remains ambiguous:
+
+do not guess.
+
+Set:
+
+comparison_operator = null
+
+where allowed,
+
+requires_manual_review = true
+
+and explain the ambiguity in review_reason.
+
+SOURCE FIDELITY
+
+25\. Preserve unusual, suspicious or apparently incorrect source terminology.
+
+26\. Never silently correct technical terminology.
+
+27\. If source wording appears technically inconsistent:
+
+\- preserve the exact material source term
+
+\- set requires_manual_review = true
+
+\- reduce confidence where appropriate
+
+\- explain the issue in review_reason
+
+28\. requirement_text must not replace a material source term with a technically more logical alternative.
+
+29\. source_quote must contain exact source wording.
+
+SOURCE TRACEABILITY
+
+30\. Include source evidence whenever reliably available:
+
+source_page
+
+source_section
+
+source_quote
+
+source_type
+
+table_id
+
+row_index
+
+column_index
+
+cell_text
+
+31\. row_index may be used only when the row number is reliably visible in the source.
+
+32\. Do not invent row numbering.
+
+OUTPUT COMPRESSION
+
+33\. Avoid unnecessary repetition.
+
+34\. Parent requirements may contain the full table-cell text in:
+
+cell_text
+
+35\. Atomic children should normally use:
+
+cell_text = null
+
+when the full source cell is already preserved by the parent.
+
+36\. For atomic children:
+
+use the smallest exact source fragment necessary in:
+
+source_quote
+
+37\. Do not duplicate an entire long parent source cell inside every child.
+
+38\. Compression may remove redundancy only.
+
+Never remove:
+
+\- requirements
+
+\- atomic children
+
+\- logic
+
+\- numeric values
+
+\- conditions
+
+\- exceptions
+
+\- source evidence
+
+MANDATORY COMPLETE-REGION VERIFICATION
+
+Before returning the final structured output:
+
+re-read ALL pages 25–28 from beginning to end.
+
+Then verify:
+
+A. Every requirement-bearing table row is represented.
+
+B. Every numbered source item is represented.
+
+C. Every enumerated sub-item is represented.
+
+D. Every bullet item containing a requirement is represented.
+
+E. Every independently testable clause is represented.
+
+F. Every meaningful numeric value and unit is represented.
+
+G. Every AND / OR relationship is preserved.
+
+H. Every condition is preserved.
+
+I. Every exception is preserved.
+
+J. Every material source term is preserved.
+
+K. No source terminology was silently corrected.
+
+L. No unsupported requirement was invented.
+
+M. No requirement-bearing content from pages 25–28 was omitted.
+
+N. No requirement from outside pages 25–28 was extracted.
+
+Do NOT stop after reaching an assumed number of source rows.
+
+Do NOT use a predefined expected requirement count.
+
+The source itself determines when the requested region has been fully extracted.
+
+Return only the configured structured output.
+
+Experiment version:
+
+V3.5 Region Extraction — Full Page Range — Generic Completeness

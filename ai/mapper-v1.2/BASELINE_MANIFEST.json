@@ -1,0 +1,26 @@
+{
+  "version": "v1.2",
+  "runtime_source": "original files from C:\\Users\\eyal\\TenderFit_Mapper_Test\\mapper\\v1.2 (SHA-256 verified by owner)",
+  "byte_for_byte_original_raw_available": true,
+  "frozen_utc": "2026-10-08T23:53:55.434136+00:00",
+  "model": "gemini-3.1-pro-preview",
+  "thinking_level": "high",
+  "temperature": 1.0,
+  "structured_output": true,
+  "external_tools": false,
+  "request_input_order": [
+    "document",
+    "text"
+  ],
+  "runtime_files": {
+    "system_instructions.txt": "517c745a8aca19ac58fda375c4f4a8cc02bac8a79529c9ed5db23851eca29407",
+    "user_prompt.txt": "92bb956bf9b11f0f08aa9a0b3b7447ff2df95c51c73eb198b902fec4dd4f295a",
+    "structured_output_schema.json": "41c686b636cb4759de8cd19c58eeae078ebc5db82984873eb4860ee4c71228de",
+    "settings.json": "b462a85fed6ce2f7053f851cf1ac4c492dbcdb61bde7451a27c046510552fb95"
+  },
+  "notes": [
+    "settings.json cost_cap_usd and max_initial_runs are experiment-phase limits; production cost control is defined in tech-stack.md section 7.",
+    "Reference implementation: reference/run_mapper.py (defaults MAPPER_VERSION to v1.0; production must use v1.2)."
+  ],
+  "production_rule": "Runtime must use these frozen files. Any Prompt/Schema/Model/Temperature change creates a new version and requires regression before promotion."
+}

@@ -1,0 +1,339 @@
+{
+  "version": "1.0",
+  "purpose": "Canonical seed registry for TenderFit dynamic Business Facts",
+  "important_runtime_rule": "Do NOT hard-code this as a closed list. New tenders may create new canonical Business Facts after normalization/deduplication.",
+  "supported_business_fact_types": [
+    "number",
+    "currency",
+    "boolean",
+    "date",
+    "enum",
+    "string"
+  ],
+  "sources": [
+    {
+      "id": "tender_2_2025",
+      "title": "מכרז פומבי 2/2025 — מערכת הפצת מסרים — מערך הדיגיטל הלאומי"
+    },
+    {
+      "id": "tender_20_2026",
+      "title": "מכרז פומבי 20/2026 — שירותי הסעדה — משרד החוץ"
+    }
+  ],
+  "facts": [
+    {
+      "business_fact_key": "bidder_system_relationship",
+      "business_fact_type": "enum",
+      "unit": null,
+      "allowed_values": [
+        "manufacturer",
+        "authorized_supplier"
+      ],
+      "description_he": "האם המציע הוא יצרן המערכת או ספק מורשה בישראל",
+      "first_seen_in": "tender_2_2025",
+      "source_page": 8,
+      "source_section": "2.1.1",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "systems_installed_since_2023_count",
+      "business_fact_type": "number",
+      "unit": "systems",
+      "description_he": "מספר מערכות מהסוג המוצע שסופקו והוקמו מאז 1.1.2023",
+      "first_seen_in": "tender_2_2025",
+      "source_page": 8,
+      "source_section": "2.1.2",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "qualifying_active_clients_count",
+      "business_fact_type": "number",
+      "unit": "clients",
+      "description_he": "מספר לקוחות פעילים שכל אחד עומד בספי נפח המסרים והדיוור שנקבעו",
+      "first_seen_in": "tender_2_2025",
+      "source_page": 8,
+      "source_section": "2.1.3",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "simultaneous_sms_throughput",
+      "business_fact_type": "number",
+      "unit": "SMS",
+      "description_he": "יכולת תעבורה בו-זמנית של מסרוני SMS",
+      "first_seen_in": "tender_2_2025",
+      "source_page": 8,
+      "source_section": "2.1.4",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "supports_sms_all_israel_and_international_carriers",
+      "business_fact_type": "boolean",
+      "unit": null,
+      "description_he": "ממשק למשלוח SMS בישראל ובחו\"ל מול ספקי התקשורת הרלוונטיים",
+      "first_seen_in": "tender_2_2025",
+      "source_page": 8,
+      "source_section": "2.1.5",
+      "code_comparable": false
+    },
+    {
+      "business_fact_key": "registered_entity_in_israel",
+      "business_fact_type": "boolean",
+      "unit": null,
+      "description_he": "המציע הוא תאגיד רשום בישראל כדין",
+      "first_seen_in": "tender_2_2025",
+      "source_page": 8,
+      "source_section": "2.2.1",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "required_legal_licenses_valid",
+      "business_fact_type": "boolean",
+      "unit": null,
+      "description_he": "כל הרישיונות/ההיתרים/ההרשאות הנדרשים לפי דין תקפים",
+      "first_seen_in": "tender_2_2025",
+      "source_page": 8,
+      "source_section": "2.2.2",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "public_entities_transactions_compliant",
+      "business_fact_type": "boolean",
+      "unit": null,
+      "description_he": "עמידה בדרישות חוק עסקאות גופים ציבוריים",
+      "first_seen_in": "tender_2_2025",
+      "source_page": 8,
+      "source_section": "2.2.3",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "going_concern_warning_absent",
+      "business_fact_type": "boolean",
+      "unit": null,
+      "description_he": "אין אזהרת עסק חי בדוחות הכספיים המבוקרים לשתי שנות המס האחרונות",
+      "first_seen_in": "tender_2_2025",
+      "source_page": 8,
+      "source_section": "2.2.4",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "maximum_supported_attachment_size_mb",
+      "business_fact_type": "number",
+      "unit": "MB",
+      "description_he": "גודל קובץ מצורף מרבי שנתמך",
+      "first_seen_in": "tender_2_2025",
+      "source_page": 26,
+      "source_section": "Mandatory technical requirements",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "supports_monthly_and_yearly_reports",
+      "business_fact_type": "boolean",
+      "unit": null,
+      "description_he": "הפקת דוחות חודשיים ושנתיים",
+      "first_seen_in": "tender_2_2025",
+      "source_page": 27,
+      "source_section": "Mandatory technical requirements",
+      "code_comparable": false
+    },
+    {
+      "business_fact_key": "supports_adaptive_sms_length_per_operator",
+      "business_fact_type": "boolean",
+      "unit": null,
+      "description_he": "התאמת אורך SMS לכל מפעיל סלולרי",
+      "first_seen_in": "tender_2_2025",
+      "source_page": 28,
+      "source_section": "Mandatory technical requirements",
+      "code_comparable": false
+    },
+    {
+      "business_fact_key": "supports_text_to_voice_conversion_kosher_phones",
+      "business_fact_type": "boolean",
+      "unit": null,
+      "description_he": "המרת הודעת טקסט להודעה קולית והפצה לטלפונים כשרים לפי ניסוח המקור",
+      "first_seen_in": "tender_2_2025",
+      "source_page": 28,
+      "source_section": "Mandatory technical requirements",
+      "code_comparable": false
+    },
+    {
+      "business_fact_key": "supports_continuous_chat",
+      "business_fact_type": "boolean",
+      "unit": null,
+      "description_he": "ניהול שיח מתמשך עם הנמען בערוץ WhatsApp",
+      "first_seen_in": "tender_2_2025",
+      "source_page": 28,
+      "source_section": "Mandatory technical requirements",
+      "code_comparable": false
+    },
+    {
+      "business_fact_key": "supports_smtp_interface",
+      "business_fact_type": "boolean",
+      "unit": null,
+      "description_he": "תמיכה בממשק SMTP להפצת הודעות",
+      "first_seen_in": "tender_2_2025",
+      "source_page": 28,
+      "source_section": "Mandatory technical requirements",
+      "code_comparable": false
+    },
+    {
+      "business_fact_key": "supports_api_rest_ws_soap",
+      "business_fact_type": "boolean",
+      "unit": null,
+      "description_he": "API התומך REST/WS/SOAP לפי דרישות המכרז",
+      "first_seen_in": "tender_2_2025",
+      "source_page": 28,
+      "source_section": "Mandatory technical requirements",
+      "code_comparable": false
+    },
+    {
+      "business_fact_key": "food_service_avg_daily_diners_experience",
+      "business_fact_type": "number",
+      "unit": "diners",
+      "description_he": "היקף סועדים יומי ממוצע בניסיון בהפעלת מערך הסעדה",
+      "first_seen_in": "tender_20_2026",
+      "source_page": 15,
+      "source_section": "4.3.1.1.1",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "food_service_experience_start_date",
+      "business_fact_type": "date",
+      "unit": null,
+      "description_he": "מועד תחילת ניסיון רלוונטי בהפעלת מערכי הסעדה לצורך ניקוד איכות",
+      "first_seen_in": "tender_20_2026",
+      "source_page": 15,
+      "source_section": "5.2 א",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "simultaneous_food_service_sites_count",
+      "business_fact_type": "number",
+      "unit": "sites",
+      "description_he": "מספר אתרי הסעדה שהופעלו בו-זמנית בתקופה הרלוונטית",
+      "first_seen_in": "tender_20_2026",
+      "source_page": 16,
+      "source_section": "5.2 ב",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "simultaneous_food_service_total_daily_diners",
+      "business_fact_type": "number",
+      "unit": "diners",
+      "description_he": "היקף סועדים יומי מצטבר באתרים שהופעלו בו-זמנית",
+      "first_seen_in": "tender_20_2026",
+      "source_page": 16,
+      "source_section": "5.2 ב",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "food_service_reference_clients_count",
+      "business_fact_type": "number",
+      "unit": "clients",
+      "description_he": "מספר לקוחות ממליצים רלוונטיים לשירותי הסעדה",
+      "first_seen_in": "tender_20_2026",
+      "source_page": 16,
+      "source_section": "5.2 ג",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "dairy_kitchen_daily_diners",
+      "business_fact_type": "number",
+      "unit": "diners",
+      "description_he": "היקף סועדים יומי בניסיון בהפעלת מטבח חלבי",
+      "first_seen_in": "tender_20_2026",
+      "source_page": 16,
+      "source_section": "5.2 ד",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "dairy_kitchen_experience_years",
+      "business_fact_type": "number",
+      "unit": "years",
+      "description_he": "מספר שנות ניסיון בהפעלת מטבח חלבי",
+      "first_seen_in": "tender_20_2026",
+      "source_page": 16,
+      "source_section": "5.2 ד",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "refreshment_services_annual_value",
+      "business_fact_type": "currency",
+      "unit": "ILS",
+      "description_he": "היקף שנתי של שירותי כיבוד ללשכות וחדרי דיונים באתר אחד",
+      "first_seen_in": "tender_20_2026",
+      "source_page": 16,
+      "source_section": "5.2 ה",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "head_chef_professional_profile",
+      "business_fact_type": "string",
+      "unit": null,
+      "description_he": "ניסיון, מקצועיות ורקע של השף/טבח הראשי המוצע",
+      "first_seen_in": "tender_20_2026",
+      "source_page": 17,
+      "source_section": "5.2 ו",
+      "code_comparable": false
+    },
+    {
+      "business_fact_key": "operations_manager_professional_profile",
+      "business_fact_type": "string",
+      "unit": null,
+      "description_he": "ניסיון מקצועי של המנהל התפעולי בתחומי תברואה, בטיחות מזון, תפעול צוותים וחומרי גלם",
+      "first_seen_in": "tender_20_2026",
+      "source_page": 17,
+      "source_section": "5.2 ז",
+      "code_comparable": false
+    },
+    {
+      "business_fact_key": "valid_kosher_certificate",
+      "business_fact_type": "boolean",
+      "unit": null,
+      "description_he": "תעודת כשרות תקפה מטעם הרבנות הראשית",
+      "first_seen_in": "tender_20_2026",
+      "source_page": 109,
+      "source_section": "254-256",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "valid_food_service_licenses",
+      "business_fact_type": "boolean",
+      "unit": null,
+      "description_he": "קיומם של רישיונות תקפים רלוונטיים לאספקת שירותי הסעדה ומכירת מזון",
+      "first_seen_in": "tender_20_2026",
+      "source_page": 21,
+      "source_section": "6.4",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "labor_law_convictions_last_3_years",
+      "business_fact_type": "number",
+      "unit": "convictions",
+      "description_he": "מספר הרשעות רלוונטיות בהפרת דיני עבודה בשלוש השנים האחרונות",
+      "first_seen_in": "tender_20_2026",
+      "source_page": 14,
+      "source_section": "4.2",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "labor_law_financial_sanctions_last_3_years",
+      "business_fact_type": "number",
+      "unit": "sanctions",
+      "description_he": "מספר עיצומים כספיים רלוונטיים בשל הפרות דיני עבודה בשלוש השנים האחרונות",
+      "first_seen_in": "tender_20_2026",
+      "source_page": 14,
+      "source_section": "4.2",
+      "code_comparable": true
+    },
+    {
+      "business_fact_key": "labor_law_fines_last_year",
+      "business_fact_type": "number",
+      "unit": "fines",
+      "description_he": "מספר קנסות רלוונטיים בשנה האחרונה",
+      "first_seen_in": "tender_20_2026",
+      "source_page": 14,
+      "source_section": "4.2",
+      "code_comparable": true
+    }
+  ]
+}

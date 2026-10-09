@@ -1,0 +1,27 @@
+{
+  "attempt": 2,
+  "status": "completed",
+  "interaction_status": "completed",
+  "pass": true,
+  "checks": {
+    "nonempty_output": true,
+    "schema_required_fields": true,
+    "unique_ids": true,
+    "valid_parent_refs": true,
+    "parents_not_code_comparable": true,
+    "all_rows_1_36": true,
+    "pages_25_28_only": true,
+    "source_quotes_present": true,
+    "40mb_semantics": true,
+    "speech_to_text_manual": true,
+    "row17_parent_child": true,
+    "row23_log_7_children": true,
+    "row31_whatsapp_chat_atomic": true,
+    "row35_smtp_api_atomic": true,
+    "technical_manual_review_safety": true
+  },
+  "requirement_count": 84,
+  "technical_safety_candidates": 66,
+  "technical_safety_bad_count": 0,
+  "technical_safety_bad_ids": []
+}

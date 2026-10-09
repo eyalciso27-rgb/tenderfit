@@ -1,0 +1,203 @@
+{
+  "type": "object",
+  "properties": {
+    "document_summary": {
+      "type": "string"
+    },
+    "regions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "region_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "region_type": {
+            "type": "string",
+            "enum": [
+              "deadlines",
+              "eligibility",
+              "submission",
+              "guarantee",
+              "evaluation",
+              "technical_mandatory",
+              "quality",
+              "implementation",
+              "sla",
+              "cybersecurity",
+              "insurance",
+              "financial",
+              "contract",
+              "forms",
+              "post_award",
+              "other"
+            ]
+          },
+          "start_page": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "end_page": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "start_anchor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "end_anchor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "content_summary": {
+            "type": "string"
+          },
+          "key_requirement_kinds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "subtopics": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "contains_tables": {
+            "type": "boolean"
+          },
+          "contains_numeric_thresholds": {
+            "type": "boolean"
+          },
+          "contains_dates_or_deadlines": {
+            "type": "boolean"
+          },
+          "contains_conditions_or_alternatives": {
+            "type": "boolean"
+          },
+          "contains_required_documents": {
+            "type": "boolean"
+          },
+          "contains_post_award_obligations": {
+            "type": "boolean"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "page": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "quote": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "page",
+                "quote"
+              ]
+            }
+          },
+          "boundary_confidence": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "content_confidence": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "needs_manual_review": {
+            "type": "boolean"
+          },
+          "review_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "region_id",
+          "title",
+          "region_type",
+          "start_page",
+          "end_page",
+          "start_anchor",
+          "end_anchor",
+          "content_summary",
+          "key_requirement_kinds",
+          "subtopics",
+          "contains_tables",
+          "contains_numeric_thresholds",
+          "contains_dates_or_deadlines",
+          "contains_conditions_or_alternatives",
+          "contains_required_documents",
+          "contains_post_award_obligations",
+          "evidence",
+          "boundary_confidence",
+          "content_confidence",
+          "needs_manual_review",
+          "review_reason"
+        ]
+      }
+    },
+    "unmapped_or_ambiguous_content": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "page",
+          "description",
+          "reason"
+        ]
+      }
+    },
+    "completeness_notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "document_summary",
+    "regions",
+    "unmapped_or_ambiguous_content",
+    "completeness_notes"
+  ]
+}
