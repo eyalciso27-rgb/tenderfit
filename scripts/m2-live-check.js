@@ -41,11 +41,20 @@ const startedAt = Date.now();
 process.stdout.write(`TENDER ${tenderId}\n`);
 
 async function request(step, extra = {}) {
-  const response = await fetch(`${API_BASE}/api/tenderfit?step=${step}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${auth.session.access_token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ tender_id: tenderId, ...extra }),
-  });
+  let response;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      response = await fetch(`${API_BASE}/api/tenderfit?step=${step}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${auth.session.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ tender_id: tenderId, ...extra }),
+      });
+      break;
+    } catch (error) {
+      if (attempt === 4) throw error;
+      await sleep(2_000 * (attempt + 1));
+    }
+  }
   const body = await response.json();
   if (!response.ok || !body.ok) {
     const error = new Error(`${step}: ${body.error?.code}: ${body.error?.message}`);
