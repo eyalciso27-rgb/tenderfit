@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import handler, { ALLOWED_STEPS, isGeminiBlobstoreFileError } from "../api/tenderfit.js";
+import handler, {
+  ALLOWED_STEPS,
+  createInlinePdfDocument,
+  isGeminiBlobstoreFileError,
+} from "../api/tenderfit.js";
 
 class MockResponse {
   constructor() {
@@ -121,4 +125,12 @@ test("the known Gemini background file-reference failure is classified", () => {
     true,
   );
   assert.equal(isGeminiBlobstoreFileError({ status: 503, message: "service unavailable" }), false);
+});
+
+test("the approved map workaround creates an inline PDF document input", () => {
+  assert.deepEqual(createInlinePdfDocument(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])), {
+    type: "document",
+    data: "JVBERi0=",
+    mime_type: "application/pdf",
+  });
 });

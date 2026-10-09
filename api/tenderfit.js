@@ -212,6 +212,38 @@ async function markStepFailed(supabase, tender, step, code) {
   }
 }
 
+async function downloadTenderPdf(supabase, tender) {
+  const { data: sourceBlob, error } = await supabase.storage
+    .from("tender-pdfs")
+    .download(tender.pdf_path);
+  if (error || !sourceBlob) {
+    throw new ApiError(404, "pdf_not_found", "קובץ המכרז לא נמצא באחסון.");
+  }
+  if (sourceBlob.size > MAX_FILE_BYTES) {
+    throw new ApiError(413, "pdf_too_large", "גודל הקובץ עולה על 50MB.");
+  }
+
+  const bytes = new Uint8Array(await sourceBlob.arrayBuffer());
+  const signature = new TextDecoder("ascii").decode(bytes.subarray(0, 5));
+  if (signature !== "%PDF-") {
+    throw new ApiError(422, "invalid_pdf", "הקובץ אינו PDF תקין.");
+  }
+
+  return {
+    bytes,
+    fileSizeBytes: sourceBlob.size,
+    pdfHash: createHash("sha256").update(bytes).digest("hex"),
+  };
+}
+
+export function createInlinePdfDocument(bytes) {
+  return {
+    type: "document",
+    data: Buffer.from(bytes).toString("base64"),
+    mime_type: "application/pdf",
+  };
+}
+
 async function runUpload(supabase, tender) {
   if (isUnexpiredActiveGeminiFile(tender)) {
     if (stepRecord(tender, "upload").status !== "done") {
@@ -251,23 +283,7 @@ async function runUpload(supabase, tender) {
   });
 
   try {
-    const { data: sourceBlob, error } = await supabase.storage
-      .from("tender-pdfs")
-      .download(tender.pdf_path);
-    if (error || !sourceBlob) {
-      throw new ApiError(404, "pdf_not_found", "קובץ המכרז לא נמצא באחסון.");
-    }
-    if (sourceBlob.size > MAX_FILE_BYTES) {
-      throw new ApiError(413, "pdf_too_large", "גודל הקובץ עולה על 50MB.");
-    }
-
-    const bytes = new Uint8Array(await sourceBlob.arrayBuffer());
-    const signature = new TextDecoder("ascii").decode(bytes.subarray(0, 5));
-    if (signature !== "%PDF-") {
-      throw new ApiError(422, "invalid_pdf", "הקובץ אינו PDF תקין.");
-    }
-
-    const pdfHash = createHash("sha256").update(bytes).digest("hex");
+    const { bytes, fileSizeBytes, pdfHash } = await downloadTenderPdf(supabase, tender);
     const client = createGeminiClient();
     const uploaded = await client.files.upload({
       file: new Blob([bytes], { type: "application/pdf" }),
@@ -301,7 +317,7 @@ async function runUpload(supabase, tender) {
         tender_id: tender.id,
         title: tender.title,
         pdf_hash: pdfHash,
-        file_size_bytes: sourceBlob.size,
+        file_size_bytes: fileSizeBytes,
         gemini_file: geminiFile,
         reused: false,
       },
@@ -496,16 +512,16 @@ async function startMap(supabase, tender, baseline) {
   });
 
   try {
+    const { bytes, pdfHash } = await downloadTenderPdf(supabase, tender);
+    if (pdfHash !== tender.pdf_hash) {
+      throw new ApiError(409, "pdf_changed", "קובץ המכרז השתנה. יש להריץ upload מחדש.");
+    }
     const client = createGeminiClient();
     const interaction = await client.interactions.create({
       model: baseline.settings.model,
       system_instruction: baseline.systemInstruction,
       input: [
-        {
-          type: "document",
-          uri: tender.gemini_file.uri,
-          mime_type: tender.gemini_file.mime_type,
-        },
+        createInlinePdfDocument(bytes),
         { type: "text", text: baseline.userPrompt },
       ],
       generation_config: {
