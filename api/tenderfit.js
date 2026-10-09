@@ -391,7 +391,7 @@ async function completeMap(supabase, tender, interaction, baseline) {
   };
 }
 
-async function failMapInteraction(supabase, tender, interaction, code) {
+async function failMapInteraction(supabase, tender, interaction, code, { invalidateGeminiFile = false } = {}) {
   const current = stepRecord(tender, "map");
   const completedAt = new Date().toISOString();
   const usageEntry = {
@@ -407,14 +407,23 @@ async function failMapInteraction(supabase, tender, interaction, code) {
     error: code,
   };
   const interactionId = usageEntry.interaction_id;
-  return updateTender(supabase, tender, {
+  const patch = {
     processing: withStep(tender, "map", {
       status: "failed",
       finished_at: completedAt,
       error: code,
     }),
     ai_usage: replaceUsage(tender, interactionId, usageEntry),
-  });
+  };
+  if (invalidateGeminiFile) patch.gemini_file = {};
+  return updateTender(supabase, tender, patch);
+}
+
+export function isGeminiBlobstoreFileError(error) {
+  const message = [error?.message, error?.error?.message, error?.error?.error?.message]
+    .filter(Boolean)
+    .join(" ");
+  return Number(error?.status) === 400 && /unsupported file uri:\s*blobstore:\/\//i.test(message);
 }
 
 async function pollMap(supabase, tender, baseline) {
@@ -427,7 +436,20 @@ async function pollMap(supabase, tender, baseline) {
     throw new ApiError(502, "mapper_timeout", "המיפוי לא הסתיים בתוך 15 דקות. אפשר לנסות שוב.");
   }
 
-  const interaction = await createGeminiClient().interactions.get(current.interaction_id);
+  let interaction;
+  try {
+    interaction = await createGeminiClient().interactions.get(current.interaction_id);
+  } catch (error) {
+    if (!isGeminiBlobstoreFileError(error)) throw error;
+    await failMapInteraction(supabase, tender, null, "gemini_file_reference_failed", {
+      invalidateGeminiFile: true,
+    });
+    throw new ApiError(
+      502,
+      "gemini_file_reference_failed",
+      "Gemini לא הצליח לקרוא את עותק המסמך. יש להעלות אותו שוב ולנסות מחדש.",
+    );
+  }
   if (PENDING_INTERACTION_STATUSES.has(interaction.status)) {
     return {
       tender,

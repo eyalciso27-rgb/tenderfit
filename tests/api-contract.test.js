@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import handler, { ALLOWED_STEPS } from "../api/tenderfit.js";
+import handler, { ALLOWED_STEPS, isGeminiBlobstoreFileError } from "../api/tenderfit.js";
 
 class MockResponse {
   constructor() {
@@ -110,4 +110,15 @@ test("a request without a bearer token receives 401 JSON", async (context) => {
   assert.equal(response.statusCode, 401);
   assert.equal(response.body.ok, false);
   assert.equal(response.body.error.code, "authentication_required");
+});
+
+test("the known Gemini background file-reference failure is classified", () => {
+  assert.equal(
+    isGeminiBlobstoreFileError({
+      status: 400,
+      message: "400 Unsupported file uri: blobstore:///genai-api/blobref/global::abc",
+    }),
+    true,
+  );
+  assert.equal(isGeminiBlobstoreFileError({ status: 503, message: "service unavailable" }), false);
 });
