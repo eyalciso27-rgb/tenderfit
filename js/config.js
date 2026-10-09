@@ -1,9 +1,8 @@
-// Publishable Supabase values are intentionally public. Replace these three
-// placeholders after creating the M1 Supabase and Vercel projects.
+// These values are intentionally public client-side configuration.
 export const CONFIG = Object.freeze({
-  supabaseUrl: "https://YOUR_PROJECT.supabase.co",
-  supabasePublishableKey: "sb_publishable_REPLACE_ME",
-  apiBaseUrl: "https://YOUR_VERCEL_PROJECT.vercel.app",
+  supabaseUrl: "https://xfgsaovqafirulakzlqh.supabase.co",
+  supabasePublishableKey: "sb_publishable_xX7cUR1QMy8wL9O91Do23A_n2-m7iXJ",
+  apiBaseUrl: "https://tenderfit-dun.vercel.app",
 });
 
 export function isConfigured() {
