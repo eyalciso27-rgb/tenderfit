@@ -882,6 +882,10 @@ async function runValidate(supabase, tender) {
     ));
     const validation = validateRequirements(merged, baseline.schema);
     if (!validation.ok) {
+      console.error("Requirements semantic validation failed", {
+        schemaErrors: validation.schemaErrors.map(({ index, errors }) => ({ index, errors })),
+        semanticErrors: validation.semanticErrors,
+      });
       throw new ApiError(422, "requirements_validation_failed", `ולידציית הדרישות נכשלה (${validation.schemaErrors.length + validation.semanticErrors.length} שגיאות).`);
     }
     const deduped = conservativeDedup(merged);

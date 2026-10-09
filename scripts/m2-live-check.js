@@ -98,9 +98,20 @@ function startRegion(region) {
 async function worker() {
   while (cursor < regions.length) {
     const region = regions[cursor++];
-    const initial = await startRegion(region);
-    process.stdout.write(`${new Date().toISOString()} extract ${region.region_id} ${initial.status}\n`);
-    if (initial.status !== "done") await untilDone("extract", { region_id: region.region_id });
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const initial = await startRegion(region);
+        process.stdout.write(`${new Date().toISOString()} extract ${region.region_id} ${initial.status}\n`);
+        if (initial.status !== "done") await untilDone("extract", { region_id: region.region_id });
+        break;
+      } catch (error) {
+        if (attempt === 0 && ["extract_failed", "extract_timeout", "extract_schema_invalid", "invalid_model_json"].includes(error.code)) {
+          process.stdout.write(`${new Date().toISOString()} extract ${region.region_id} retrying\n`);
+          continue;
+        }
+        throw error;
+      }
+    }
   }
 }
 await Promise.all(Array.from({ length: Math.min(K, regions.length) }, () => worker()));

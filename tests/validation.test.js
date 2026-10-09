@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { conservativeDedup, prepareAjvSchema } from "../lib/validate.js";
+import { conservativeDedup, prepareAjvSchema, validateRequirements } from "../lib/validate.js";
 
 function requirement(id, quote = "נדרש רישיון תקף") {
   return {
@@ -28,4 +28,14 @@ test("OpenAPI nullable enums are converted for Ajv without widening non-null val
   const prepared = prepareAjvSchema({ type: "string", nullable: true, enum: ["each", "all"] });
   assert.deepEqual(prepared.enum, ["each", "all", null]);
   assert.deepEqual(prepared.type, "string");
+});
+
+test("an atomic all_of requirement is not mistaken for a structural parent", () => {
+  const schema = { type: "object", properties: { requirements: { type: "array", items: { type: "object" } } }, required: ["requirements"] };
+  const result = validateRequirements([{
+    requirement_id: "insurance", parent_requirement_id: null, logic_type: "all_of", code_comparable: true,
+    source_page: 12, source_section: "ביטוח", source_quote: "נדרש ביטוח",
+    value: null, business_fact_type: null, requires_manual_review: false,
+  }], schema);
+  assert.equal(result.semanticErrors.includes("structural_parent_comparable:insurance"), false);
 });

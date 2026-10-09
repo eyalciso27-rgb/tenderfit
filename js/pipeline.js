@@ -5,6 +5,7 @@ const POLL_INTERVAL_MS = 10_000;
 const CONFLICT_RETRY_MS = 1_200;
 const MAX_WAIT_MS = 15 * 60_000;
 export const EXTRACT_CONCURRENCY = 5;
+const RETRYABLE_REGION_ERRORS = new Set(["extract_failed", "extract_timeout", "extract_schema_invalid", "invalid_model_json"]);
 
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -86,14 +87,25 @@ async function runRegionQueue(tenderId, regions, onProgress) {
   async function worker() {
     while (cursor < regions.length) {
       const region = regions[cursor++];
-      const initial = await lockedStart(region);
-      if (initial.status === "done") {
-        onProgress?.({ step: "extract", state: "done", regionId: region.region_id, regionTitle: region.title, data: initial.data });
-        continue;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          const initial = await lockedStart(region);
+          if (initial.status === "done") {
+            onProgress?.({ step: "extract", state: "done", regionId: region.region_id, regionTitle: region.title, data: initial.data });
+          } else {
+            await runUntilDone("extract", tenderId, { region_id: region.region_id }, (event) => {
+              onProgress?.({ ...event, regionId: region.region_id, regionTitle: region.title });
+            });
+          }
+          break;
+        } catch (error) {
+          if (attempt === 0 && RETRYABLE_REGION_ERRORS.has(error.code)) {
+            onProgress?.({ step: "extract", state: "retrying", regionId: region.region_id, regionTitle: region.title });
+            continue;
+          }
+          throw error;
+        }
       }
-      await runUntilDone("extract", tenderId, { region_id: region.region_id }, (event) => {
-        onProgress?.({ ...event, regionId: region.region_id, regionTitle: region.title });
-      });
     }
   }
   await Promise.all(Array.from({ length: Math.min(EXTRACT_CONCURRENCY, regions.length) }, () => worker()));
