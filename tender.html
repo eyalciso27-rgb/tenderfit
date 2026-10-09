@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="פרטי המכרז והדרישות שחולצו ב-TenderFit">
+    <title>TenderFit | דרישות המכרז</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand brand-link" href="upload.html"><span class="brand-mark" aria-hidden="true">TF</span><span>TenderFit</span></a>
+      <nav class="header-actions"><a class="button button-text" href="upload.html">מכרז חדש</a><button id="logout-button" class="button button-text" type="button">התנתק</button></nav>
+    </header>
+    <main class="wide-content">
+      <div id="page-message" class="status-box" data-state="working"><span aria-hidden="true">…</span><span>טוען את המכרז…</span></div>
+      <section id="tender-content" hidden>
+        <article class="card tender-hero">
+          <div>
+            <p class="eyebrow">מכרז <bdi id="tender-number">—</bdi></p>
+            <h1 id="tender-title"></h1>
+            <p id="publisher" class="muted"></p>
+          </div>
+          <span id="urgency-badge" class="urgency-badge"></span>
+          <dl class="metadata-grid">
+            <div><dt>מועד הגשה</dt><dd id="deadline"></dd></div>
+            <div><dt>ימים שנותרו</dt><dd id="days-left"></dd></div>
+            <div><dt>דרישות</dt><dd id="requirements-count"></dd></div>
+            <div><dt>זמן עיבוד</dt><dd id="duration"></dd></div>
+          </dl>
+          <p id="metadata-warning" class="inline-warning" hidden>חילוץ פרטי המכרז נכשל. הדרישות שחולצו עדיין מוצגות.</p>
+        </article>
+
+        <section class="requirements-section" aria-labelledby="requirements-title">
+          <header class="section-heading"><div><p class="eyebrow">עם עקיבות למקור</p><h2 id="requirements-title">דרישות המכרז</h2></div><span id="manual-review-count" class="review-chip"></span></header>
+          <div id="empty-state" class="card empty-state" hidden>לא אותרו דרישות במכרז.</div>
+          <div id="requirements-list" class="requirements-list"></div>
+        </section>
+      </section>
+    </main>
+    <script type="module" src="js/tender.js"></script>
+  </body>
+</html>

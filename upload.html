@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="העלאת מכרז חדש ל-TenderFit">
+    <title>TenderFit | העלאת מכרז</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand brand-link" href="upload.html"><span class="brand-mark" aria-hidden="true">TF</span><span>TenderFit</span></a>
+      <button id="logout-button" class="button button-text" type="button">התנתק</button>
+    </header>
+    <main class="content-column upload-column">
+      <header class="page-heading">
+        <p class="eyebrow">מכרז חדש</p>
+        <h1>מעלים PDF, ומקבלים דרישות עם מקור</h1>
+        <p>הקובץ נשמר באופן פרטי. גודל מרבי: 50MB.</p>
+      </header>
+
+      <section class="card upload-card" aria-labelledby="upload-title">
+        <h2 id="upload-title">בחירת קובץ</h2>
+        <label id="drop-zone" class="drop-zone" for="pdf-file">
+          <span class="upload-icon" aria-hidden="true">↑</span>
+          <strong>גררו לכאן PDF או לחצו לבחירה</strong>
+          <span>PDF בלבד · עד 50MB</span>
+          <input id="pdf-file" class="visually-hidden" type="file" accept="application/pdf,.pdf">
+        </label>
+
+        <div id="file-card" class="selected-file" hidden>
+          <span class="file-badge" aria-hidden="true">PDF</span>
+          <span><strong id="file-name"></strong><small id="file-meta"></small></span>
+        </div>
+
+        <div id="processing-status" class="processing-card" data-state="ready" hidden aria-live="polite">
+          <div class="progress-copy"><strong id="progress-text">מוכן</strong><span>אפשר לסגור ולחזור — המצב נשמר.</span></div>
+          <div class="progress-track" aria-hidden="true"><span id="progress-bar"></span></div>
+        </div>
+
+        <button id="start-button" class="button button-primary full-button" type="button" disabled>התחל ניתוח</button>
+        <button id="continue-button" class="button button-secondary full-button" type="button" hidden>המשך עיבוד קודם</button>
+      </section>
+    </main>
+    <script type="module" src="js/upload.js"></script>
+  </body>
+</html>

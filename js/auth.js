@@ -86,12 +86,7 @@ async function refreshSessionView(session) {
     showLogin();
     return;
   }
-  showApp();
-  try {
-    await loadProtectedData();
-  } catch (error) {
-    setRunStatus("error", "✕", error.message);
-  }
+  window.location.replace("upload.html");
 }
 
 async function currentAccessToken() {

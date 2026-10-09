@@ -57,6 +57,10 @@ select {
   font: inherit;
 }
 
+a {
+  color: inherit;
+}
+
 button,
 select {
   min-height: 44px;
@@ -277,6 +281,17 @@ input::placeholder {
   color: var(--color-nav-text);
 }
 
+.brand-link {
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
 .content-column {
   display: grid;
   gap: 1rem;
@@ -359,6 +374,338 @@ input::placeholder {
   font-size: 0.875rem;
 }
 
+.page-heading {
+  padding: 0.5rem 0;
+}
+
+.page-heading > p:last-child,
+.muted {
+  color: var(--color-text-secondary);
+}
+
+.upload-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.drop-zone {
+  display: grid;
+  min-height: 210px;
+  place-items: center;
+  align-content: center;
+  gap: 0.5rem;
+  padding: 1.5rem;
+  border: 2px dashed #a7c8c2;
+  border-radius: 12px;
+  color: var(--color-text-secondary);
+  background: var(--color-mint);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.drop-zone strong {
+  color: var(--color-primary);
+  font-size: 1.05rem;
+}
+
+.drop-zone.is-dragging {
+  border-color: var(--color-accent-dark);
+  background: var(--color-mint-active);
+}
+
+.upload-icon {
+  display: grid;
+  width: 3.5rem;
+  height: 3.5rem;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--color-accent-dark);
+  background: var(--color-mint-icon);
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.selected-file {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.selected-file > span:last-child {
+  display: grid;
+  min-width: 0;
+}
+
+.selected-file strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selected-file small {
+  color: var(--color-text-secondary);
+}
+
+.file-badge {
+  flex: 0 0 auto;
+  padding: 0.35rem;
+  border-radius: 5px;
+  color: #ffffff;
+  background: var(--color-error);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.processing-card {
+  display: grid;
+  gap: 0.7rem;
+  padding: 1rem;
+  border: 1px solid var(--color-accent);
+  border-radius: 10px;
+  background: var(--color-mint);
+}
+
+.processing-card[data-state="error"] {
+  border-color: var(--color-error);
+  color: var(--color-error-text);
+  background: var(--color-error-background);
+}
+
+.processing-card[data-state="success"] {
+  border-color: var(--color-success);
+  color: var(--color-success-text);
+  background: var(--color-success-background);
+}
+
+.progress-copy {
+  display: grid;
+}
+
+.progress-copy span {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.progress-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-border);
+}
+
+.progress-track span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent-dark);
+  transition: width 240ms ease;
+}
+
+.full-button {
+  width: 100%;
+}
+
+.wide-content {
+  display: grid;
+  gap: 1.25rem;
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+}
+
+.tender-hero {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.tender-hero h1 {
+  overflow-wrap: anywhere;
+}
+
+.urgency-badge,
+.review-chip,
+.chip {
+  width: fit-content;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.urgency-badge[data-level="high"],
+.urgency-badge[data-level="ended"] {
+  color: var(--color-error-text);
+  background: var(--color-error-background);
+}
+
+.urgency-badge[data-level="medium"],
+.urgency-badge[data-level="unknown"],
+.review-chip,
+.chip-review {
+  color: var(--color-review-text);
+  background: var(--color-review-background) !important;
+}
+
+.urgency-badge[data-level="low"] {
+  color: var(--color-success-text);
+  background: var(--color-success-background);
+}
+
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.metadata-grid > div {
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: var(--color-app-background);
+}
+
+.metadata-grid dt {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+
+.metadata-grid dd {
+  margin: 0.2rem 0 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.inline-warning {
+  margin: 0;
+  padding: 0.7rem;
+  border-radius: 8px;
+  color: var(--color-review-text);
+  background: var(--color-review-background);
+}
+
+.requirements-section {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.section-heading h2 {
+  margin: 0;
+}
+
+.requirements-list,
+.child-list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.requirement-card {
+  min-width: 0;
+  padding: 1rem;
+}
+
+.requirement-card h3 {
+  margin: 0.65rem 0 0;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  color: var(--color-info-text);
+  background: var(--color-info-background);
+}
+
+.requirement-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem 0.9rem;
+  margin-top: 1rem;
+}
+
+.requirement-field {
+  display: grid;
+  min-width: 0;
+}
+
+.requirement-field span {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+.requirement-field strong {
+  overflow-wrap: anywhere;
+}
+
+.source-details,
+.children-group {
+  margin-top: 0.85rem;
+  border-top: 1px solid var(--color-border);
+  padding-top: 0.75rem;
+}
+
+summary {
+  color: var(--color-link);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+blockquote {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem;
+  border-right: 3px solid var(--color-accent);
+  color: var(--color-text-secondary);
+  background: var(--color-mint);
+  unicode-bidi: plaintext;
+  overflow-wrap: anywhere;
+}
+
+.cell-text {
+  overflow-wrap: anywhere;
+  unicode-bidi: plaintext;
+}
+
+.child-list {
+  margin-top: 0.75rem;
+  padding-right: 0.65rem;
+  border-right: 2px solid var(--color-border);
+}
+
+.empty-state {
+  padding: 2rem;
+  text-align: center;
+}
+
 @media (min-width: 600px) {
   .login-card {
     padding: 2rem;
@@ -366,6 +713,20 @@ input::placeholder {
 
   .button-row {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .upload-card,
+  .tender-hero,
+  .requirement-card {
+    padding: 1.5rem;
+  }
+
+  .metadata-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .requirement-fields {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 
