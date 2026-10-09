@@ -1,0 +1,7 @@
+Analyze the complete attached tender and extract its document-level metadata.
+
+Return the tender title, tender number, publishing authority, a concise executive summary, the final submission deadline, all other critical dates, and all bid or performance guarantees.
+
+For submission_deadline, include the exact supporting page, section and quote. Use null if it cannot be found unambiguously. Do not guess a year, timezone, amount, or guarantee type.
+
+Return only the configured structured output.

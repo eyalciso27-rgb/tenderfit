@@ -1,0 +1,18 @@
+{
+  "deadlines": "This region contains tender dates, deadlines, schedules, validity periods, and time-bound obligations. Preserve every date, time, dependency, and exception exactly.",
+  "eligibility": "This region contains bidder eligibility and threshold conditions. Distinguish the underlying business fact from the evidence required to prove it.",
+  "submission": "This region contains bid submission instructions and mandatory submission-package obligations. Preserve channel, format, signature, copy, and timing requirements.",
+  "guarantee": "This region contains bid or performance guarantee requirements. Preserve amount, percentage, validity, issuer, wording, and realization conditions exactly.",
+  "evaluation": "This region contains evaluation, scoring, ranking, progression, or disqualification rules. Separate evaluation rules from capabilities or facts being evaluated.",
+  "technical_mandatory": "This region contains mandatory technical and functional requirements evaluated as part of a technical Go / No-Go evaluation stage.\n\nThese requirements are not bidder eligibility threshold conditions merely because failure may cause rejection.",
+  "quality": "This region contains qualitative or scored requirements. Preserve score weights, thresholds, formulas, supporting evidence, and any human-evaluation criteria.",
+  "implementation": "This region contains delivery, implementation, transition, staffing, operational, or service obligations. Classify obligations that apply after award as post-award.",
+  "sla": "This region contains service levels, response or resolution times, availability, penalties, and measurement rules. Preserve thresholds, units, measurement windows, and remedies.",
+  "cybersecurity": "This region contains cybersecurity, privacy, information-security, incident, audit, and access-control requirements. Do not mark capabilities code-comparable without trusted independent facts.",
+  "insurance": "This region contains insurance and liability requirements. Preserve policy type, coverage amount, duration, beneficiary, endorsements, and documentary evidence.",
+  "financial": "This region contains financial, pricing, indexation, payment, turnover, or fee requirements. Preserve currency, tax treatment, formulas, thresholds, periods, and exceptions.",
+  "contract": "This region contains contract terms, declarations, liability, termination, assignment, and legal obligations. Preserve conditions, exceptions, actors, and effective periods.",
+  "forms": "This region contains forms, affidavits, declarations, and tables to be completed or attached. Extract both the submission obligation and any independently testable underlying fact.",
+  "post_award": "This region contains obligations applying to the successful bidder after award or contract execution. Use requirement_target post_award_obligation and stage post_award where appropriate.",
+  "other": "This region may contain mixed or uncategorized tender requirements. Classify each requirement from its source meaning and preserve all material conditions and evidence."
+}

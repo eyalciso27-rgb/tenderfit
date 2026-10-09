@@ -4,9 +4,11 @@ import { GoogleGenAI } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 import Ajv from "ajv";
 
-import { loadMapperBaseline } from "../lib/baseline.js";
+import { loadExtractorBaseline, loadMapperBaseline, loadMetadataBaseline } from "../lib/baseline.js";
 import { assertAiBudgetAvailable, BudgetExceededError } from "../lib/budget.js";
+import { fillExtractorPrompt, getRegion, prefixRegionRequirementIds } from "../lib/extractor.js";
 import { estimateGeminiCost } from "../lib/pricing.js";
+import { conservativeDedup, validateRequirements } from "../lib/validate.js";
 
 export const ALLOWED_STEPS = Object.freeze([
   "upload",
@@ -156,6 +158,16 @@ function withStep(tender, step, changes) {
   return processing;
 }
 
+function regionRecord(tender, regionId) {
+  return tender.processing?.regions?.[regionId] ?? { status: "pending", attempts: 0, error: null };
+}
+
+function withRegion(tender, regionId, changes) {
+  const processing = cloneProcessing(tender);
+  processing.regions[regionId] = { ...regionRecord(tender, regionId), ...changes };
+  return processing;
+}
+
 async function updateTender(supabase, tender, patch, conflictMessage = "השלב כבר עודכן בבקשה אחרת.") {
   const updatedAt = new Date().toISOString();
   const { data, error } = await supabase
@@ -202,6 +214,20 @@ async function markStepFailed(supabase, tender, step, code) {
   try {
     return await updateTender(supabase, tender, {
       processing: withStep(tender, step, {
+        status: "failed",
+        finished_at: new Date().toISOString(),
+        error: code,
+      }),
+    });
+  } catch {
+    return tender;
+  }
+}
+
+async function markRegionFailed(supabase, tender, regionId, code) {
+  try {
+    return await updateTender(supabase, tender, {
+      processing: withRegion(tender, regionId, {
         status: "failed",
         finished_at: new Date().toISOString(),
         error: code,
@@ -487,6 +513,7 @@ async function pollMap(supabase, tender, baseline) {
   try {
     return await completeMap(supabase, tender, interaction, baseline);
   } catch (error) {
+    if (error instanceof ApiError && error.statusCode === 409) throw error;
     await failMapInteraction(supabase, tender, interaction, error.code ?? "mapper_output_failed");
     throw error;
   }
@@ -596,6 +623,274 @@ async function runMap(supabase, tender) {
   return startMap(supabase, tender, baseline);
 }
 
+function parseAndValidateModelJson(interaction, schema, errorCode, errorMessage) {
+  let parsed;
+  try {
+    parsed = JSON.parse(interaction.output_text ?? "");
+  } catch {
+    throw new ApiError(502, "invalid_model_json", "פלט המודל לא היה JSON תקין.");
+  }
+  const ajv = new Ajv({ allErrors: true, strict: false, allowUnionTypes: true });
+  if (!ajv.compile(schema)(parsed)) throw new ApiError(502, errorCode, errorMessage);
+  return parsed;
+}
+
+async function submitInteraction(supabase, tender, baseline, prompt) {
+  const { bytes, pdfHash } = await downloadTenderPdf(supabase, tender);
+  if (pdfHash !== tender.pdf_hash) {
+    throw new ApiError(409, "pdf_changed", "קובץ המכרז השתנה. יש להריץ upload מחדש.");
+  }
+  return createGeminiClient().interactions.create({
+    model: baseline.settings.model,
+    system_instruction: baseline.systemInstruction,
+    input: [createInlinePdfDocument(bytes), { type: "text", text: prompt }],
+    generation_config: {
+      thinking_level: baseline.settings.thinking_level,
+      temperature: baseline.settings.temperature,
+    },
+    response_format: [{ type: "text", mime_type: "application/json", schema: baseline.schema }],
+    store: true,
+    background: true,
+  });
+}
+
+function waitingData(tender, interaction, sentAt, extra = {}) {
+  return {
+    tender_id: tender.id,
+    interaction_id: interaction.id,
+    interaction_status: interaction.status,
+    sent_at: sentAt,
+    elapsed_ms: Math.max(0, Date.now() - Date.parse(sentAt)),
+    ...extra,
+  };
+}
+
+async function startMetadata(supabase, tender, baseline) {
+  if (stepRecord(tender, "upload").status !== "done") {
+    throw new ApiError(409, "upload_required", "יש להשלים את שלב העלאת המסמך לפני חילוץ הפרטים.");
+  }
+  await assertAiBudgetAvailable(supabase, tender);
+  const current = stepRecord(tender, "metadata");
+  tender = await updateTender(supabase, tender, {
+    processing: withStep(tender, "metadata", {
+      status: "running", started_at: new Date().toISOString(), finished_at: null,
+      attempts: Number(current.attempts ?? 0) + 1, error: null, interaction_id: null, sent_at: null,
+    }),
+  });
+  try {
+    const interaction = await submitInteraction(supabase, tender, baseline, baseline.userPrompt);
+    const sentAt = new Date().toISOString();
+    tender = await updateTender(supabase, tender, {
+      processing: withStep(tender, "metadata", { status: "waiting", interaction_id: interaction.id, sent_at: sentAt, error: null }),
+      ai_usage: appendUsage(tender, {
+        component: "metadata-f15-v1.0", model: baseline.settings.model, interaction_id: interaction.id,
+        status: "waiting", sent_at: sentAt, completed_at: null, duration_ms: null,
+        estimated_cost_usd: 0, pdf_hash: tender.pdf_hash,
+      }),
+    });
+    return { tender, waiting: true, data: waitingData(tender, interaction, sentAt) };
+  } catch (error) {
+    await markStepFailed(supabase, tender, "metadata", error.code ?? "metadata_submit_failed");
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(502, "metadata_submit_failed", "שליחת חילוץ פרטי המכרז נכשלה.");
+  }
+}
+
+async function pollMetadata(supabase, tender, baseline) {
+  const current = stepRecord(tender, "metadata");
+  if (!current.interaction_id || !current.sent_at) throw new ApiError(500, "metadata_state_invalid", "סטטוס חילוץ הפרטים אינו תקין.");
+  if (Date.now() - Date.parse(current.sent_at) >= INTERACTION_TIMEOUT_MS) {
+    await markStepFailed(supabase, tender, "metadata", "metadata_timeout");
+    throw new ApiError(502, "metadata_timeout", "חילוץ פרטי המכרז לא הסתיים בתוך 15 דקות.");
+  }
+  const interaction = await createGeminiClient().interactions.get(current.interaction_id);
+  if (PENDING_INTERACTION_STATUSES.has(interaction.status)) {
+    return { tender, waiting: true, data: waitingData(tender, interaction, current.sent_at) };
+  }
+  if (interaction.status !== "completed") {
+    await markStepFailed(supabase, tender, "metadata", `metadata_${interaction.status}`);
+    throw new ApiError(502, "metadata_failed", "חילוץ פרטי המכרז נכשל.");
+  }
+  try {
+    const parsed = parseAndValidateModelJson(interaction, baseline.schema, "metadata_schema_invalid", "פרטי המכרז לא תאמו למבנה המאושר.");
+    const completedAt = new Date().toISOString();
+    const usage = await estimateGeminiCost(interaction.usage);
+    const deadline = parsed.submission_deadline?.iso;
+    const validDeadline = deadline && Number.isFinite(Date.parse(deadline)) ? new Date(deadline).toISOString() : null;
+    const usageEntry = {
+      component: "metadata-f15-v1.0", model: interaction.model ?? baseline.settings.model,
+      interaction_id: interaction.id, status: "completed", sent_at: current.sent_at,
+      completed_at: completedAt, duration_ms: Math.max(0, Date.now() - Date.parse(current.sent_at)),
+      pdf_hash: tender.pdf_hash, ...usage,
+    };
+    tender = await updateTender(supabase, tender, {
+      title: parsed.title || tender.title,
+      tender_number: parsed.tender_number || tender.tender_number,
+      publisher: parsed.publisher,
+      submission_deadline: validDeadline,
+      metadata: parsed,
+      processing: withStep(tender, "metadata", { status: "done", finished_at: completedAt, error: null }),
+      ai_usage: replaceUsage(tender, interaction.id, usageEntry),
+    });
+    return { tender, data: { tender_id: tender.id, duration_ms: usageEntry.duration_ms, usage, output: parsed } };
+  } catch (error) {
+    if (error instanceof ApiError && error.statusCode === 409) throw error;
+    await markStepFailed(supabase, tender, "metadata", error.code ?? "metadata_output_failed");
+    throw error;
+  }
+}
+
+async function runMetadata(supabase, tender) {
+  const baseline = await loadMetadataBaseline();
+  const current = stepRecord(tender, "metadata");
+  if (current.status === "done") return { tender, data: { tender_id: tender.id, output: tender.metadata, reused: true } };
+  if (current.status === "waiting") return pollMetadata(supabase, tender, baseline);
+  if (current.status === "running") throw new ApiError(409, "step_already_running", "חילוץ פרטי המכרז כבר רץ.");
+  return startMetadata(supabase, tender, baseline);
+}
+
+function getRegionId(body) {
+  const regionId = body?.region_id;
+  if (typeof regionId !== "string" || regionId.length < 1 || regionId.length > 160 || !/^[\w.-]+$/u.test(regionId)) {
+    throw new ApiError(400, "invalid_region_id", "מזהה האזור אינו תקין.");
+  }
+  return regionId;
+}
+
+async function startExtract(supabase, tender, region, baseline) {
+  await assertAiBudgetAvailable(supabase, tender);
+  const current = regionRecord(tender, region.region_id);
+  if (!Number.isInteger(region.start_page) || !Number.isInteger(region.end_page)) {
+    const completedAt = new Date().toISOString();
+    const outputs = { ...(tender.region_outputs ?? {}), [region.region_id]: { requirements: [], skipped: true, review_reason: "אזור ללא גבולות עמודים." } };
+    tender = await updateTender(supabase, tender, {
+      region_outputs: outputs,
+      processing: withRegion(tender, region.region_id, {
+        status: "done", finished_at: completedAt, attempts: Number(current.attempts ?? 0) + 1,
+        error: null, requires_manual_review: true,
+      }),
+    });
+    return { tender, data: { tender_id: tender.id, region_id: region.region_id, skipped: true } };
+  }
+  tender = await updateTender(supabase, tender, {
+    processing: withRegion(tender, region.region_id, {
+      status: "running", started_at: new Date().toISOString(), finished_at: null,
+      attempts: Number(current.attempts ?? 0) + 1, error: null, interaction_id: null, sent_at: null,
+    }),
+  });
+  try {
+    const prompt = fillExtractorPrompt(baseline.promptTemplate, region, baseline.regionContext);
+    const interaction = await submitInteraction(supabase, tender, baseline, prompt);
+    const sentAt = new Date().toISOString();
+    tender = await updateTender(supabase, tender, {
+      processing: withRegion(tender, region.region_id, { status: "waiting", interaction_id: interaction.id, sent_at: sentAt, error: null }),
+      ai_usage: appendUsage(tender, {
+        component: "extractor-v3.6", region_id: region.region_id, model: baseline.settings.model,
+        interaction_id: interaction.id, status: "waiting", sent_at: sentAt, completed_at: null,
+        duration_ms: null, estimated_cost_usd: 0, pdf_hash: tender.pdf_hash,
+      }),
+    });
+    return { tender, waiting: true, data: waitingData(tender, interaction, sentAt, { region_id: region.region_id }) };
+  } catch (error) {
+    await markRegionFailed(supabase, tender, region.region_id, error.code ?? "extract_submit_failed");
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(502, "extract_submit_failed", "שליחת חילוץ האזור נכשלה.");
+  }
+}
+
+async function pollExtract(supabase, tender, region, baseline) {
+  const current = regionRecord(tender, region.region_id);
+  if (!current.interaction_id || !current.sent_at) throw new ApiError(500, "extract_state_invalid", "סטטוס חילוץ האזור אינו תקין.");
+  if (Date.now() - Date.parse(current.sent_at) >= INTERACTION_TIMEOUT_MS) {
+    await markRegionFailed(supabase, tender, region.region_id, "extract_timeout");
+    throw new ApiError(502, "extract_timeout", "חילוץ האזור לא הסתיים בתוך 15 דקות.");
+  }
+  const interaction = await createGeminiClient().interactions.get(current.interaction_id);
+  if (PENDING_INTERACTION_STATUSES.has(interaction.status)) {
+    return { tender, waiting: true, data: waitingData(tender, interaction, current.sent_at, { region_id: region.region_id }) };
+  }
+  if (interaction.status !== "completed") {
+    await markRegionFailed(supabase, tender, region.region_id, `extract_${interaction.status}`);
+    throw new ApiError(502, "extract_failed", "חילוץ האזור נכשל.");
+  }
+  try {
+    const parsed = parseAndValidateModelJson(interaction, baseline.schema, "extract_schema_invalid", "פלט חילוץ האזור לא תאם למבנה המאושר.");
+    if (region.needs_manual_review || region.boundary_confidence === "low") {
+      parsed.requirements = parsed.requirements.map((requirement) => ({
+        ...requirement,
+        requires_manual_review: true,
+        review_reason: requirement.review_reason || region.review_reason || "גבולות האזור דורשים בדיקה ידנית.",
+      }));
+    }
+    const completedAt = new Date().toISOString();
+    const usage = await estimateGeminiCost(interaction.usage);
+    const usageEntry = {
+      component: "extractor-v3.6", region_id: region.region_id,
+      model: interaction.model ?? baseline.settings.model, interaction_id: interaction.id,
+      status: "completed", sent_at: current.sent_at, completed_at: completedAt,
+      duration_ms: Math.max(0, Date.now() - Date.parse(current.sent_at)), pdf_hash: tender.pdf_hash, ...usage,
+    };
+    tender = await updateTender(supabase, tender, {
+      region_outputs: { ...(tender.region_outputs ?? {}), [region.region_id]: parsed },
+      processing: withRegion(tender, region.region_id, { status: "done", finished_at: completedAt, error: null }),
+      ai_usage: replaceUsage(tender, interaction.id, usageEntry),
+    });
+    return { tender, data: { tender_id: tender.id, region_id: region.region_id, requirement_count: parsed.requirements.length, duration_ms: usageEntry.duration_ms, usage } };
+  } catch (error) {
+    if (error instanceof ApiError && error.statusCode === 409) throw error;
+    await markRegionFailed(supabase, tender, region.region_id, error.code ?? "extract_output_failed");
+    throw error;
+  }
+}
+
+async function runExtract(supabase, tender, body) {
+  if (stepRecord(tender, "map").status !== "done") throw new ApiError(409, "map_required", "יש להשלים מיפוי לפני חילוץ אזורים.");
+  const regionId = getRegionId(body);
+  const region = getRegion(tender.regions, regionId);
+  if (!region) throw new ApiError(404, "region_not_found", "האזור לא נמצא במפת המכרז.");
+  const current = regionRecord(tender, regionId);
+  if (current.status === "done") return { tender, data: { tender_id: tender.id, region_id: regionId, output: tender.region_outputs?.[regionId], reused: true } };
+  if (current.status === "waiting") return pollExtract(supabase, tender, region, await loadExtractorBaseline());
+  if (current.status === "running") throw new ApiError(409, "region_already_running", "חילוץ האזור כבר רץ.");
+  return startExtract(supabase, tender, region, await loadExtractorBaseline());
+}
+
+async function runValidate(supabase, tender) {
+  const current = stepRecord(tender, "validate");
+  if (current.status === "done") return { tender, data: { tender_id: tender.id, requirement_count: tender.requirements?.length ?? 0, reused: true } };
+  const regions = tender.regions?.regions ?? [];
+  const unfinished = regions.filter((region) => regionRecord(tender, region.region_id).status !== "done");
+  if (unfinished.length) throw new ApiError(409, "regions_incomplete", `נותרו ${unfinished.length} אזורים שלא הסתיימו.`);
+  tender = await updateTender(supabase, tender, {
+    processing: withStep(tender, "validate", {
+      status: "running", started_at: new Date().toISOString(), finished_at: null,
+      attempts: Number(current.attempts ?? 0) + 1, error: null,
+    }),
+  });
+  try {
+    const baseline = await loadExtractorBaseline();
+    const merged = regions.flatMap((region) => prefixRegionRequirementIds(
+      region.region_id,
+      tender.region_outputs?.[region.region_id]?.requirements ?? [],
+    ));
+    const validation = validateRequirements(merged, baseline.schema);
+    if (!validation.ok) {
+      throw new ApiError(422, "requirements_validation_failed", `ולידציית הדרישות נכשלה (${validation.schemaErrors.length + validation.semanticErrors.length} שגיאות).`);
+    }
+    const deduped = conservativeDedup(merged);
+    const completedAt = new Date().toISOString();
+    tender = await updateTender(supabase, tender, {
+      requirements: deduped.requirements,
+      dedup_log: deduped.log,
+      processing: withStep(tender, "validate", { status: "done", finished_at: completedAt, error: null, warnings: validation.warnings }),
+    });
+    return { tender, data: { tender_id: tender.id, requirement_count: deduped.requirements.length, duplicate_count: deduped.log.filter((entry) => entry.action === "removed_exact").length, warnings: validation.warnings } };
+  } catch (error) {
+    await markStepFailed(supabase, tender, "validate", error.code ?? "validation_failed");
+    throw error;
+  }
+}
+
 export default async function handler(request, response) {
   const step = typeof request.query?.step === "string" ? request.query.step : null;
   setCorsHeaders(request, response);
@@ -612,7 +907,8 @@ export default async function handler(request, response) {
       throw new ApiError(400, "unknown_step", "שלב העיבוד אינו מוכר.");
     }
 
-    const tenderId = getTenderId(requestBody(request));
+    const body = requestBody(request);
+    const tenderId = getTenderId(body);
     const tender = await loadTender(supabase, tenderId);
 
     if (step === "upload") {
@@ -624,7 +920,20 @@ export default async function handler(request, response) {
       return sendSuccess(response, step, result.waiting ? "waiting" : "done", result.data);
     }
 
-    throw new ApiError(501, "step_not_implemented_in_m1", "השלב מוגדר, אך ימומש בשלב מאוחר יותר.");
+    if (step === "metadata") {
+      const result = await runMetadata(supabase, tender);
+      return sendSuccess(response, step, result.waiting ? "waiting" : "done", result.data);
+    }
+    if (step === "extract") {
+      const result = await runExtract(supabase, tender, body);
+      return sendSuccess(response, step, result.waiting ? "waiting" : "done", result.data);
+    }
+    if (step === "validate") {
+      const result = await runValidate(supabase, tender);
+      return sendSuccess(response, step, "done", result.data);
+    }
+
+    throw new ApiError(501, "step_not_implemented_in_m2", "השלב מוגדר, אך ימומש בשלב מאוחר יותר.");
   } catch (error) {
     if (error instanceof BudgetExceededError) {
       return sendError(response, step, 402, error.code, "הגעת לתקרת העלות של ה־AI.");

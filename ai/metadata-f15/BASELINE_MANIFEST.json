@@ -1,0 +1,9 @@
+{
+  "version": "f15-v1.0",
+  "runtime_files": {
+    "system_instructions.txt": "3c7450c755888220aa1542d54a3c1e80815f8cd19009401689efd84944dd1467",
+    "user_prompt.txt": "139488e3d0dbc08eec3471fa6cbc0c1e8a2b28f127ce95aa9d26381f78b0e07d",
+    "structured_output_schema.json": "90c19a6f1ec30c97f30af8dd13f33de987634401bc267fdecdcec4584e531e27",
+    "settings.json": "ad36dd7f491d62f9c32481b3fc9d6c4cabf6c3f93e424bf6a5e65fd19f0a2ea7"
+  }
+}

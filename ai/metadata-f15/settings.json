@@ -1,0 +1,9 @@
+{
+  "version": "f15-v1.0",
+  "model": "gemini-3.1-pro-preview",
+  "thinking_level": "high",
+  "temperature": 0.1,
+  "structured_output": true,
+  "external_tools": false,
+  "store": true
+}

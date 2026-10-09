@@ -1,0 +1,7 @@
+{
+  "version": "v3.6",
+  "runtime_files": {
+    "prompt.template.txt": "8288c3f7bd19c286fc9078a909c2ada789b8654cb0c2935599f7dbeb73866080",
+    "region-context.json": "b9e14a4703046b57dbd8b8c1772d22564271137969f6d5b09d48be3592dda71f"
+  }
+}

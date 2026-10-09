@@ -1,0 +1,51 @@
+{
+  "type": "object",
+  "properties": {
+    "title": { "type": ["string", "null"] },
+    "tender_number": { "type": ["string", "null"] },
+    "publisher": { "type": ["string", "null"] },
+    "executive_summary": { "type": ["string", "null"] },
+    "submission_deadline": {
+      "type": ["object", "null"],
+      "properties": {
+        "iso": { "type": ["string", "null"] },
+        "source_page": { "type": ["integer", "null"] },
+        "source_section": { "type": ["string", "null"] },
+        "source_quote": { "type": ["string", "null"] }
+      },
+      "required": ["iso", "source_page", "source_section", "source_quote"]
+    },
+    "critical_dates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": { "type": "string" },
+          "iso": { "type": ["string", "null"] },
+          "source_page": { "type": ["integer", "null"] },
+          "source_section": { "type": ["string", "null"] },
+          "source_quote": { "type": ["string", "null"] }
+        },
+        "required": ["label", "iso", "source_page", "source_section", "source_quote"]
+      }
+    },
+    "guarantees": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string" },
+          "amount": { "type": ["string", "null"] },
+          "currency": { "type": ["string", "null"] },
+          "valid_until": { "type": ["string", "null"] },
+          "source_page": { "type": ["integer", "null"] },
+          "source_section": { "type": ["string", "null"] },
+          "source_quote": { "type": ["string", "null"] }
+        },
+        "required": ["type", "amount", "currency", "valid_until", "source_page", "source_section", "source_quote"]
+      }
+    },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["title", "tender_number", "publisher", "executive_summary", "submission_deadline", "critical_dates", "guarantees", "notes"]
+}

@@ -536,9 +536,28 @@ Baseline שנבחר: `Temperature = 0.1`.
 
 ## F15 — Metadata
 
-**Status: NOT YET EXECUTED AS A FORMAL TEST CASE**
+**Version under test:** `metadata-f15` / `f15-v1.0`
 
-אין עדיין Test Case פורמלי מלא עם Input → Expected → Actual → Result.
+### F15-01 — מכרז 20/2026
+
+- Input: מסמך הקורפוס של משרד החוץ, 171 עמודים.
+- Expected: שם ומספר מכרז, משרד החוץ כגוף מפרסם, מועד הגשה עם עמוד/סעיף/ציטוט, וכל ערבות שאותרה עם מקור. אין ניחוש לשדה חסר.
+- Actual: טרם נרשם; יתועד בהרצת הקבלה של M2.
+- Result: PENDING.
+
+### F15-02 — מכרז 2/2025
+
+- Input: מסמך הקורפוס של מערך הדיגיטל, 135 עמודים.
+- Expected: שם ומספר מכרז, גוף מפרסם, מועד הגשה עם עמוד/סעיף/ציטוט, וכל ערבות שאותרה עם מקור. אין ניחוש לשדה חסר.
+- Actual: טרם נרשם; יתועד בהרצת הקבלה של M2.
+- Result: PENDING.
+
+### F15-03 — מועד לא חד-משמעי
+
+- Input: PDF תקין שבו אין מועד הגשה חד-משמעי או שחסרה שנת המועד.
+- Expected: `submission_deadline.iso = null`; אין השלמת שנה או שעה; נוסף הסבר ל-`notes`.
+- Actual: Schema ו-System Prompt אוכפים null במקום ניחוש; בדיקת מודל חיה טרם בוצעה.
+- Result: PARTIAL — contract test passes, live model case pending.
 
 ## F18 — Fit Analysis
 
