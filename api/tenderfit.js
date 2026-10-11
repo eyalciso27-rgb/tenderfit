@@ -13,6 +13,7 @@ import { aiCallReservationUsd, assertAiBudgetAvailable, BudgetExceededError } fr
 import { compareAtomicRequirement } from "../lib/comparison.js";
 import { fillExtractorPrompt, getRegion, prefixRegionRequirementIds } from "../lib/extractor.js";
 import { ensureBusinessFacts } from "../lib/facts.js";
+import { createRegionPdfExcerpt, normalizeExcerptSourcePages } from "../lib/pdf-region.js";
 import { estimateGeminiCost } from "../lib/pricing.js";
 import { conservativeDedup, normalizeStructuralParents, prepareAjvSchema, validateRequirements } from "../lib/validate.js";
 
@@ -700,15 +701,43 @@ function parseAndValidateModelJson(interaction, schema, errorCode, errorMessage)
   return parsed;
 }
 
-async function submitInteraction(supabase, tender, baseline, prompt) {
+async function submitInteraction(supabase, tender, baseline, prompt, region = null) {
   const { bytes, pdfHash } = await downloadTenderPdf(supabase, tender);
   if (pdfHash !== tender.pdf_hash) {
     throw new ApiError(409, "pdf_changed", "קובץ המכרז השתנה. יש להריץ upload מחדש.");
   }
-  return createGeminiClient().interactions.create({
+  let submittedBytes = bytes;
+  let documentInput = {
+    mode: "full_document",
+    original_byte_count: bytes.byteLength,
+    submitted_byte_count: bytes.byteLength,
+  };
+  if (region) {
+    try {
+      const excerpt = await createRegionPdfExcerpt(bytes, region);
+      submittedBytes = excerpt.bytes;
+      documentInput = {
+        ...excerpt.info,
+        original_byte_count: bytes.byteLength,
+        submitted_byte_count: excerpt.bytes.byteLength,
+      };
+    } catch (error) {
+      console.warn("PDF region excerpt failed; using the complete document", {
+        region_id: region.region_id,
+        code: error?.code ?? error?.name ?? "pdf_excerpt_failed",
+      });
+      documentInput = {
+        ...documentInput,
+        mode: "full_document_fallback",
+        target_start_page: region.start_page,
+        target_end_page: region.end_page,
+      };
+    }
+  }
+  const interaction = await createGeminiClient().interactions.create({
     model: baseline.settings.model,
     system_instruction: baseline.systemInstruction,
-    input: [createInlinePdfDocument(bytes), { type: "text", text: prompt }],
+    input: [createInlinePdfDocument(submittedBytes), { type: "text", text: prompt }],
     generation_config: {
       thinking_level: baseline.settings.thinking_level,
       temperature: baseline.settings.temperature,
@@ -717,6 +746,7 @@ async function submitInteraction(supabase, tender, baseline, prompt) {
     store: true,
     background: true,
   });
+  return { interaction, documentInput };
 }
 
 function waitingData(tender, interaction, sentAt, extra = {}) {
@@ -749,7 +779,7 @@ async function startMetadata(supabase, tender, baseline) {
   });
   let interaction;
   try {
-    interaction = await submitInteraction(supabase, tender, baseline, baseline.userPrompt);
+    ({ interaction } = await submitInteraction(supabase, tender, baseline, baseline.userPrompt));
     const sentAt = new Date().toISOString();
     tender = await updateTender(supabase, tender, {
       processing: withStep(tender, "metadata", { status: "waiting", interaction_id: interaction.id, sent_at: sentAt, error: null }),
@@ -873,15 +903,19 @@ async function startExtract(supabase, tender, region, baseline) {
     ai_usage: appendUsage(tender, reservation),
   });
   let interaction;
+  let documentInput;
   try {
     const prompt = fillExtractorPrompt(baseline.promptTemplate, region, baseline.regionContext);
-    interaction = await submitInteraction(supabase, tender, baseline, prompt);
+    ({ interaction, documentInput } = await submitInteraction(supabase, tender, baseline, prompt, region));
     const sentAt = new Date().toISOString();
     tender = await updateTender(supabase, tender, {
-      processing: withRegion(tender, region.region_id, { status: "waiting", interaction_id: interaction.id, sent_at: sentAt, error: null }),
+      processing: withRegion(tender, region.region_id, {
+        status: "waiting", interaction_id: interaction.id, sent_at: sentAt, error: null,
+        document_input: documentInput,
+      }),
       ai_usage: replaceUsage(tender, reservation.interaction_id, {
         ...reservation, interaction_id: interaction.id, status: "waiting", sent_at: sentAt,
-        completed_at: null, duration_ms: null,
+        completed_at: null, duration_ms: null, document_input: documentInput,
       }),
     });
     return { tender, waiting: true, data: waitingData(tender, interaction, sentAt, { region_id: region.region_id }) };
@@ -921,6 +955,7 @@ async function pollExtract(supabase, tender, region, baseline) {
   }
   try {
     const parsed = parseAndValidateModelJson(interaction, baseline.schema, "extract_schema_invalid", "פלט חילוץ האזור לא תאם למבנה המאושר.");
+    parsed.requirements = normalizeExcerptSourcePages(parsed.requirements, current.document_input);
     if (region.needs_manual_review || region.boundary_confidence === "low") {
       parsed.requirements = parsed.requirements.map((requirement) => ({
         ...requirement,
