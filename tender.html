@@ -84,8 +84,43 @@
           <div id="filter-empty" class="card empty-state" hidden>אין דרישות בתוצאה שנבחרה.</div>
           <div id="requirements-list" class="requirements-list"></div>
         </section>
+
+        <section id="decision-card" class="card decision-card" aria-labelledby="decision-title">
+          <header class="decision-heading">
+            <div><p class="eyebrow">החלטה ופעולות</p><h2 id="decision-title">האם ניגשים למכרז?</h2></div>
+            <span id="decision-badge" class="decision-badge" data-decision="none">טרם נבחרה</span>
+          </header>
+          <p class="decision-neutrality">ההחלטה שלך בלבד. המערכת לא ממליצה Go או No-Go.</p>
+          <div class="decision-actions" role="group" aria-label="בחירת החלטה למכרז">
+            <button id="decision-go" class="button decision-button" type="button" data-decision="go">Go</button>
+            <button id="decision-no-go" class="button decision-button" type="button" data-decision="no_go">No-Go</button>
+          </div>
+          <p class="muted">אפשר לשנות את ההחלטה בכל עת.</p>
+          <p id="decision-updated-at" class="decision-updated-at">החלטה עוד לא נבחרה.</p>
+          <p id="decision-feedback" class="inline-save-message" aria-live="polite"></p>
+          <button class="button button-primary" type="button" disabled title="ה-Checklist יתווסף ב-M5">מעבר ל-Checklist — יתווסף ב-M5</button>
+        </section>
       </section>
     </main>
+
+    <dialog id="error-report-dialog" class="error-report-dialog" aria-labelledby="error-report-title">
+      <form id="error-report-form" class="error-report-form">
+        <header>
+          <p class="eyebrow">משוב לשיפור</p>
+          <h2 id="error-report-title">דיווח על בעיה בניתוח</h2>
+        </header>
+        <p id="error-report-requirement" class="error-report-requirement"></p>
+        <div id="error-report-status"></div>
+        <label for="error-report-explanation">מה לדעתך שגוי?</label>
+        <textarea id="error-report-explanation" name="explanation" rows="5" required></textarea>
+        <p class="muted">הדיווח נשמר לבדיקה ואינו משנה את התוצאה או מאמן את המערכת אוטומטית.</p>
+        <p id="error-report-feedback" class="inline-save-message" aria-live="polite"></p>
+        <div class="error-report-actions">
+          <button id="error-report-submit" class="button button-primary" type="submit">שלח</button>
+          <button id="error-report-cancel" class="button button-secondary" type="button">ביטול</button>
+        </div>
+      </form>
+    </dialog>
     <script type="module" src="js/tender.js"></script>
   </body>
 </html>

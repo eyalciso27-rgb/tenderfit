@@ -27,6 +27,7 @@ import {
   normalizeTenderResponses,
   TENDER_RESPONSE_STATUS,
 } from "../lib/tender-response.js";
+import { buildAiErrorReport, buildDecisionUpdate } from "../lib/m4-actions.js";
 
 const params = new URLSearchParams(location.search);
 const tenderId = params.get("id");
@@ -41,6 +42,9 @@ let registryByKey = new Map();
 let activeFilter = "all";
 let sourcePdfUrl = null;
 let tenderResponseSaving = false;
+let decisionSaving = false;
+let activeReportRequirement = null;
+let reportedRequirementIds = new Set();
 
 const RESPONSE_STATUS_META = Object.freeze({
   met: { icon: "✓", label: "עומד" },
@@ -406,6 +410,131 @@ function tenderResponseForm(requirement) {
   return wrapper;
 }
 
+function formatDecisionTime(value) {
+  if (!value || !Number.isFinite(Date.parse(value))) return "החלטה עוד לא נבחרה.";
+  return `החלטה עודכנה: ${new Intl.DateTimeFormat("he-IL", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "Asia/Jerusalem",
+  }).format(new Date(value))}`;
+}
+
+function renderDecision() {
+  const decision = tender.decision ?? "none";
+  const badge = document.querySelector("#decision-badge");
+  badge.dataset.decision = decision;
+  badge.textContent = decision === "go" ? "✓ Go" : decision === "no_go" ? "✓ No-Go" : "טרם נבחרה";
+  for (const button of document.querySelectorAll(".decision-button")) {
+    const selected = button.dataset.decision === decision;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
+    button.textContent = selected
+      ? `✓ ${button.dataset.decision === "go" ? "Go" : "No-Go"}`
+      : button.dataset.decision === "go" ? "Go" : "No-Go";
+  }
+  document.querySelector("#decision-updated-at").textContent = formatDecisionTime(tender.decision_updated_at);
+}
+
+async function saveDecision(value) {
+  if (decisionSaving || tender.decision === value) return;
+  const update = buildDecisionUpdate(value);
+  if (!update) return;
+  decisionSaving = true;
+  const buttons = [...document.querySelectorAll(".decision-button")];
+  const feedback = document.querySelector("#decision-feedback");
+  for (const button of buttons) button.disabled = true;
+  feedback.dataset.state = "working";
+  feedback.textContent = "שומר את ההחלטה…";
+  try {
+    const { data, error } = await supabase
+      .from("tenders")
+      .update(update)
+      .eq("id", tender.id)
+      .select("decision, decision_updated_at, updated_at")
+      .single();
+    if (error) throw new Error("שמירת ההחלטה נכשלה.");
+    Object.assign(tender, data);
+    renderDecision();
+    feedback.dataset.state = "success";
+    feedback.textContent = `✓ ההחלטה נשמרה: ${value === "go" ? "Go" : "No-Go"}.`;
+  } catch (error) {
+    feedback.dataset.state = "error";
+    feedback.textContent = error.message || "שמירת ההחלטה נכשלה.";
+  } finally {
+    decisionSaving = false;
+    for (const button of buttons) button.disabled = false;
+  }
+}
+
+function reportAction(requirement) {
+  const row = document.createElement("div");
+  row.className = "error-report-entry";
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "button button-text error-report-open";
+  button.textContent = "⚑ דווח על בעיה בניתוח";
+  button.addEventListener("click", () => openErrorReport(requirement));
+  row.append(button);
+  if (reportedRequirementIds.has(requirement.requirement_id)) {
+    const saved = document.createElement("span");
+    saved.className = "report-saved-chip";
+    saved.textContent = "✓ הדיווח נשמר";
+    row.append(saved);
+  }
+  return row;
+}
+
+function openErrorReport(requirement) {
+  activeReportRequirement = requirement;
+  const result = resultFor(requirement);
+  document.querySelector("#error-report-requirement").textContent = translateToHebrew(requirement.requirement_text);
+  const status = document.querySelector("#error-report-status");
+  status.replaceChildren(resultBadge(result.status));
+  document.querySelector("#error-report-explanation").value = "";
+  const feedback = document.querySelector("#error-report-feedback");
+  feedback.textContent = "";
+  delete feedback.dataset.state;
+  document.querySelector("#error-report-dialog").showModal();
+}
+
+async function submitErrorReport(event) {
+  event.preventDefault();
+  if (!activeReportRequirement) return;
+  const submit = document.querySelector("#error-report-submit");
+  const feedback = document.querySelector("#error-report-feedback");
+  const explanation = document.querySelector("#error-report-explanation").value;
+  const report = buildAiErrorReport({
+    userId: currentUser.id,
+    tenderId: tender.id,
+    requirement: activeReportRequirement,
+    comparisonResult: resultFor(activeReportRequirement),
+    fitAnalysis: tender.fit_analysis,
+    userExplanation: explanation,
+  });
+  if (!report) {
+    feedback.dataset.state = "error";
+    feedback.textContent = "יש להסביר מה לדעתך שגוי.";
+    return;
+  }
+  submit.disabled = true;
+  feedback.dataset.state = "working";
+  feedback.textContent = "שומר את הדיווח…";
+  try {
+    const { error } = await supabase.from("ai_error_reports").insert(report);
+    if (error) throw new Error("שמירת הדיווח נכשלה.");
+    reportedRequirementIds.add(activeReportRequirement.requirement_id);
+    document.querySelector("#error-report-dialog").close();
+    activeReportRequirement = null;
+    renderRequirements();
+    setCompareMessage("success", "✓", "הדיווח נשמר. הוא אינו משנה את תוצאת המערכת.");
+  } catch (error) {
+    feedback.dataset.state = "error";
+    feedback.textContent = error.message || "שמירת הדיווח נכשלה.";
+  } finally {
+    submit.disabled = false;
+  }
+}
+
 const statusWeight = { gap: 0, missing: 1, review: 2, met: 3 };
 
 function subtreeMatches(requirement, childrenByParent) {
@@ -543,6 +672,7 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
     if (tableLink) notice.append(tableLink);
     article.append(notice);
   }
+  article.append(reportAction(requirement));
 
   const nextAncestors = new Set(ancestorIds);
   nextAncestors.add(requirement.requirement_id);
@@ -702,15 +832,18 @@ function renderAll() {
   renderTenderComparisonFacts();
   renderSourceTables();
   renderRequirements();
+  renderDecision();
 }
 
 async function refreshData() {
-  const [tenderResult, profileResult] = await Promise.all([
+  const [tenderResult, profileResult, reportsResult] = await Promise.all([
     supabase.from("tenders").select("*").eq("id", tenderId).single(),
     supabase.from("business_profile").select("*").eq("user_id", currentUser.id).maybeSingle(),
+    supabase.from("ai_error_reports").select("requirement_id").eq("tender_id", tenderId),
   ]);
   if (tenderResult.error) throw new Error("לא הצלחנו לקרוא את המכרז.");
   if (profileResult.error) throw new Error("לא הצלחנו לקרוא את פרופיל העסק.");
+  if (reportsResult.error) throw new Error("לא הצלחנו לקרוא את דיווחי השגיאות.");
   tender = tenderResult.data;
   tender.results ??= {};
   tender.results.responses = normalizeTenderResponses(
@@ -720,6 +853,7 @@ async function refreshData() {
   );
   profile = profileResult.data ?? { user_id: currentUser.id, business_facts: {} };
   profile.business_facts ??= {};
+  reportedRequirementIds = new Set((reportsResult.data ?? []).map((item) => item.requirement_id));
 }
 
 async function compare(successCopy = null) {
@@ -779,6 +913,13 @@ async function load() {
 
 document.querySelector("#logout-button").addEventListener("click", async () => { await supabase.auth.signOut(); location.replace("index.html"); });
 compareButton.addEventListener("click", compare);
+document.querySelector("#decision-go").addEventListener("click", () => saveDecision("go"));
+document.querySelector("#decision-no-go").addEventListener("click", () => saveDecision("no_go"));
+document.querySelector("#error-report-form").addEventListener("submit", submitErrorReport);
+document.querySelector("#error-report-cancel").addEventListener("click", () => {
+  activeReportRequirement = null;
+  document.querySelector("#error-report-dialog").close();
+});
 document.querySelector("#result-filters").addEventListener("click", (event) => {
   const button = event.target.closest("[data-filter]");
   if (!button) return;

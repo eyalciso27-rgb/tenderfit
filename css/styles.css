@@ -254,6 +254,138 @@ textarea::placeholder {
   cursor: not-allowed;
 }
 
+.decision-card {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+  border-color: var(--color-accent-dark);
+}
+
+.decision-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.decision-heading h2,
+.decision-card p {
+  margin: 0;
+}
+
+.decision-badge {
+  padding: 0.3rem 0.75rem;
+  border: 1px dashed var(--color-text-secondary);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.decision-badge[data-decision="go"] {
+  border-style: solid;
+  border-color: var(--color-accent-dark);
+  color: #ffffff;
+  background: var(--color-accent-dark);
+}
+
+.decision-badge[data-decision="no_go"] {
+  border-style: solid;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-card);
+}
+
+.decision-neutrality {
+  font-weight: 700;
+}
+
+.decision-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.decision-button {
+  border: 1px solid var(--color-accent-dark);
+  color: var(--color-accent-dark);
+  background: var(--color-card);
+}
+
+.decision-button[data-decision="go"].is-selected {
+  color: #ffffff;
+  background: var(--color-accent-dark);
+}
+
+.decision-button[data-decision="no_go"].is-selected {
+  border-color: var(--color-primary);
+  color: #ffffff;
+  background: var(--color-primary);
+}
+
+.decision-updated-at {
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+}
+
+.error-report-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.error-report-open {
+  min-height: 44px;
+  padding-inline: 0;
+}
+
+.report-saved-chip {
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  color: var(--color-success-text);
+  background: var(--color-success-background);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.error-report-dialog {
+  width: min(560px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  color: var(--color-primary);
+  background: var(--color-card);
+  box-shadow: var(--shadow-card);
+}
+
+.error-report-dialog::backdrop {
+  background: rgba(11, 47, 74, 0.6);
+}
+
+.error-report-form {
+  padding: 1.25rem;
+}
+
+.error-report-form h2,
+.error-report-form p {
+  margin: 0;
+}
+
+.error-report-requirement {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.error-report-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
 #login-button {
   width: 100%;
   margin-top: 0.5rem;
@@ -1189,9 +1321,18 @@ blockquote {
   }
 
   .overview-heading,
-  .section-heading {
+  .section-heading,
+  .decision-heading {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .error-report-dialog {
+    width: 100%;
+    max-width: none;
+    max-height: 88vh;
+    margin: auto 0 0;
+    border-radius: 14px 14px 0 0;
   }
 }
 
