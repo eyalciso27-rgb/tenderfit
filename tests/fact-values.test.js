@@ -88,11 +88,15 @@ test("translates English requirement text and explanations to natural Hebrew", a
   );
   assert.equal(
     translateToHebrew("Business fact satisfies the condition code-comparable."),
-    "נתון העסק עומד בתנאי שניתן להשוואה בקוד."
+    "נתון העסק עומד בתנאי שנבדק אוטומטית."
   );
   assert.equal(
     translateToHebrew("Business fact does not satisfy the condition code-comparable."),
-    "נתון העסק אינו עומד בתנאי שניתן להשוואה בקוד."
+    "נתון העסק אינו עומד בתנאי שנבדק אוטומטית."
+  );
+  assert.equal(
+    translateToHebrew("נתון העסק עומד בתנאי שניתן להשוואה בקוד."),
+    "נתון העסק עומד בתנאי שנבדק אוטומטית."
   );
   assert.equal(
     translateToHebrew("הדרישה נבדקה בהצלחה"),

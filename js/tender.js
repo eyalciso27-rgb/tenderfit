@@ -28,6 +28,7 @@ import {
   TENDER_RESPONSE_STATUS,
 } from "../lib/tender-response.js";
 import { buildAiErrorReport, buildDecisionUpdate } from "../lib/m4-actions.js";
+import { buildFitAnalysisDisplaySummary, userFacingAutomationText } from "../lib/fit-analysis.js";
 
 const params = new URLSearchParams(location.search);
 const tenderId = params.get("id");
@@ -736,7 +737,7 @@ function renderOverview() {
   } else {
     criticalSummaryElement.textContent = "✓ לא זוהו תנאי סף קריטיים שדורשים תשומת לב.";
   }
-  text("comparison-summary", results.summary || "ההשוואה טרם הושלמה.");
+  text("comparison-summary", userFacingAutomationText(results.summary || "ההשוואה טרם הושלמה."));
 }
 
 function renderFitAnalysis() {
@@ -748,15 +749,24 @@ function renderFitAnalysis() {
 
   if (fit) {
     state.dataset.state = "success";
-    state.textContent = "✓ ההסבר הופק לפי תוצאות הקוד";
+    state.textContent = "✓ ההסבר הופק לפי תוצאות הבדיקה האוטומטית";
+    const displaySummary = buildFitAnalysisDisplaySummary(tender.results);
     const summary = document.createElement("p");
     summary.className = "fit-summary";
-    summary.textContent = fit.summary;
+    summary.textContent = displaySummary.summary;
     contentElement.append(summary);
+    if (displaySummary.nextStep) {
+      const nextStep = document.createElement("p");
+      nextStep.className = "fit-next-step";
+      const strong = document.createElement("strong");
+      strong.textContent = displaySummary.nextStep;
+      nextStep.append(strong);
+      contentElement.append(nextStep);
+    }
     const sections = [
       ["strengths", "נקודות חוזק", "✓"],
       ["gaps", "פערים מרכזיים", "✕"],
-      ["missing_information", "מידע שכדאי להשלים", "?"],
+      ["missing_information", "מידע חסר", "?"],
       ["review_priorities", "נושאים לבדיקה", "!"],
     ];
     for (const [key, title, icon] of sections) {
@@ -770,9 +780,9 @@ function renderFitAnalysis() {
       for (const item of items) {
         const listItem = document.createElement("li");
         const itemTitle = document.createElement("strong");
-        itemTitle.textContent = item.title;
+        itemTitle.textContent = userFacingAutomationText(item.title);
         const explanation = document.createElement("span");
-        explanation.textContent = item.explanation;
+        explanation.textContent = userFacingAutomationText(item.explanation);
         listItem.append(itemTitle, explanation);
         list.append(listItem);
       }
@@ -781,17 +791,17 @@ function renderFitAnalysis() {
     }
     const note = document.createElement("p");
     note.className = "fit-important-note";
-    note.textContent = fit.important_note;
+    note.textContent = "התוצאה מסבירה את בדיקת ההתאמה האוטומטית בלבד. היא אינה ייעוץ משפטי ואינה החלטת Go/No-Go.";
     contentElement.append(note);
     return;
   }
 
   if (["running", "waiting"].includes(compareStep.status)) {
     state.dataset.state = "working";
-    state.textContent = "… ההשוואה בקוד נשמרה. הסבר ה־AI עדיין בהכנה.";
+    state.textContent = "… תוצאות הבדיקה האוטומטית נשמרו. הסבר ה־AI עדיין בהכנה.";
   } else if (compareStep.status === "failed") {
     state.dataset.state = "error";
-    state.textContent = "✕ הסבר ה־AI נכשל. תוצאות ההשוואה בקוד נשמרו ומוצגות כרגיל.";
+    state.textContent = "✕ הסבר ה־AI נכשל. תוצאות הבדיקה האוטומטית נשמרו ומוצגות כרגיל.";
   } else {
     state.dataset.state = "idle";
     state.textContent = "הסבר ה־AI יופק לאחר לחיצה על „בדוק שוב”.";
@@ -919,10 +929,10 @@ async function refreshData() {
 async function compare(successCopy = null) {
   compareButton.disabled = true;
   const startedAt = performance.now();
-  setCompareMessage("working", "…", "משווה בקוד ולאחר מכן מפיקה הסבר AI…");
+  setCompareMessage("working", "…", "מבצע בדיקת התאמה אוטומטית ולאחר מכן מפיק הסבר AI…");
   try {
     await runPipelineStepUntilDone("compare", tenderId, {}, (event) => {
-      if (event.state === "waiting") setCompareMessage("working", "…", "תוצאות הקוד נשמרו. הסבר ה־AI עדיין בהכנה…");
+      if (event.state === "waiting") setCompareMessage("working", "…", "תוצאות הבדיקה האוטומטית נשמרו. הסבר ה־AI עדיין בהכנה…");
     });
     await refreshData();
     renderAll();
@@ -935,7 +945,7 @@ async function compare(successCopy = null) {
     } catch {
       // Keep the original failure message when refreshing the saved code results also fails.
     }
-    setCompareMessage("error", "✕", error.message || "תוצאות הקוד נשמרו, אך הסבר ה־AI נכשל.");
+    setCompareMessage("error", "✕", error.message || "תוצאות הבדיקה האוטומטית נשמרו, אך הסבר ה־AI נכשל.");
   } finally {
     compareButton.disabled = false;
   }

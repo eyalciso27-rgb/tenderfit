@@ -78,7 +78,7 @@ test("counts critical eligibility attention and returns a neutral summary", () =
   assert.equal(output.critical_gap_count, 1);
   assert.equal(output.atomic_business_fact_count, 3);
   assert.match(output.summary, /פערים בתנאי סף קריטיים/);
-  assert.equal(output.disclaimer, "מחושב בקוד מתוך התוצאות. אינו המלצה.");
+  assert.equal(output.disclaimer, "מחושב אוטומטית מתוך התוצאות. אינו המלצה.");
 });
 
 test("aggregates a realistic requirement volume in under two seconds", () => {

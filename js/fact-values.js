@@ -270,13 +270,16 @@ export const EXPLANATION_TRANSLATIONS = Object.freeze({
   "tender submission deadline is unknown, so validity cannot be verified.": "מועד ההגשה לא ידוע ולכן אי אפשר לבדוק את תוקף הנתון.",
   "business fact date is invalid.": "תאריך נתון העסק אינו תקין.",
   "the business fact date is invalid.": "תאריך נתון העסק אינו תקין.",
-  "cannot perform comparison deterministically in code.": "לא ניתן לבצע את ההשוואה באופן חד-משמעי בקוד.",
-  "the comparison cannot be performed deterministically in code.": "לא ניתן לבצע את ההשוואה באופן חד-משמעי בקוד.",
-  "business fact satisfies the condition code-comparable.": "נתון העסק עומד בתנאי שניתן להשוואה בקוד.",
-  "business fact meets code-comparable condition.": "נתון העסק עומד בתנאי שניתן להשוואה בקוד.",
-  "business fact complies with requirement.": "נתון העסק עומד בתנאי שניתן להשוואה בקוד.",
-  "business fact does not satisfy the condition code-comparable.": "נתון העסק אינו עומד בתנאי שניתן להשוואה בקוד.",
-  "business fact does not meet code-comparable condition.": "נתון העסק אינו עומד בתנאי שניתן להשוואה בקוד.",
+  "cannot perform comparison deterministically in code.": "לא ניתן לבצע את ההשוואה באופן אוטומטי וחד-משמעי.",
+  "the comparison cannot be performed deterministically in code.": "לא ניתן לבצע את ההשוואה באופן אוטומטי וחד-משמעי.",
+  "business fact satisfies the condition code-comparable.": "נתון העסק עומד בתנאי שנבדק אוטומטית.",
+  "business fact meets code-comparable condition.": "נתון העסק עומד בתנאי שנבדק אוטומטית.",
+  "business fact complies with requirement.": "נתון העסק עומד בתנאי שנבדק אוטומטית.",
+  "business fact does not satisfy the condition code-comparable.": "נתון העסק אינו עומד בתנאי שנבדק אוטומטית.",
+  "business fact does not meet code-comparable condition.": "נתון העסק אינו עומד בתנאי שנבדק אוטומטית.",
+  "לא ניתן לבצע את ההשוואה באופן חד-משמעי בקוד.": "לא ניתן לבצע את ההשוואה באופן אוטומטי וחד-משמעי.",
+  "נתון העסק עומד בתנאי שניתן להשוואה בקוד.": "נתון העסק עומד בתנאי שנבדק אוטומטית.",
+  "נתון העסק אינו עומד בתנאי שניתן להשוואה בקוד.": "נתון העסק אינו עומד בתנאי שנבדק אוטומטית.",
   "circular parent/child structure requires review.": "מבנה Parent/Child מעגלי דורש בדיקה.",
   "no comparison result.": "אין תוצאת השוואה.",
   "parent result was derived from child requirements and is not counted again in totals.": "תוצאת Parent נגזרה מדרישות המשנה ואינה נספרת שוב במונים.",
@@ -291,14 +294,14 @@ export function translateToHebrew(text) {
   const trimmed = text.trim();
   if (!trimmed) return "";
 
-  // If already Hebrew and doesn't match known English requirement phrases
-  if (/[\u0590-\u05ff]/u.test(trimmed) && !/\b(?:guarantee|must be|bid bond|performance)\b/i.test(trimmed)) {
-    return trimmed;
-  }
-
   const normalized = trimmed.toLowerCase().replace(/\s+/g, " ");
   if (EXPLANATION_TRANSLATIONS[normalized]) {
     return EXPLANATION_TRANSLATIONS[normalized];
+  }
+
+  // If already Hebrew and doesn't match known English requirement phrases
+  if (/[\u0590-\u05ff]/u.test(trimmed) && !/\b(?:guarantee|must be|bid bond|performance)\b/i.test(trimmed)) {
+    return trimmed;
   }
 
   // Regex pattern for guarantee amounts: "The performance guarantee amount must be exactly 300,000 NIS."

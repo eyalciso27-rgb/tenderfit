@@ -2,10 +2,33 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildFitAnalysisDisplaySummary,
   buildFitAnalysisContext,
   fillFitAnalysisPrompt,
+  userFacingAutomationText,
   validateFitAnalysisSemantics,
 } from "../lib/fit-analysis.js";
+
+test("Fit Analysis presents a deterministic user-facing summary without implementation jargon", () => {
+  const output = buildFitAnalysisDisplaySummary({
+    counts: { met: 4, review: 104, gap: 0, missing: 0 },
+    critical_attention_count: 15,
+  });
+
+  assert.equal(
+    output.summary,
+    "מניתוח נתוני העסק מול דרישות המכרז עולה כי העסק עומד ב־4 דרישות שנבדקו אוטומטית. 104 דרישות נוספות סומנו לבדיקה ידנית, ובהן 15 תנאי סף קריטיים. לפי הנתונים הקיימים, אף דרישה לא סווגה כפער או כחוסר מידע.",
+  );
+  assert.equal(output.nextStep, "השלב הבא: לעבור תחילה על 15 תנאי הסף הקריטיים שסומנו לבדיקה.");
+  assert.doesNotMatch(`${output.summary} ${output.nextStep}`, /קוד/);
+});
+
+test("legacy AI wording is presented without implementation jargon", () => {
+  assert.equal(
+    userFacingAutomationText("תוצאות הקוד נשמרו ולפי הקוד הדרישה עומדת."),
+    "תוצאות הבדיקה האוטומטית נשמרו ולפי הבדיקה האוטומטית הדרישה עומדת.",
+  );
+});
 
 function tender() {
   return {
