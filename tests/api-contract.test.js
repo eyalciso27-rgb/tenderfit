@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
 
 import handler, {
   ALLOWED_STEPS,
+  buildComparisonResults,
   createInlinePdfDocument,
   isGeminiBlobstoreFileError,
   isPendingInteractionExpired,
@@ -149,4 +151,75 @@ test("a running lock is reclaimable only after 330 seconds", () => {
   const startedAt = "2026-10-09T10:00:00.000Z";
   assert.equal(isStaleRunning({ status: "running", started_at: startedAt }, Date.parse("2026-10-09T10:05:29.000Z")), false);
   assert.equal(isStaleRunning({ status: "running", started_at: startedAt }, Date.parse("2026-10-09T10:05:30.000Z")), true);
+});
+
+test("compare builds stored code results without a model response", () => {
+  const requirements = [{
+    requirement_id: "r1",
+    parent_requirement_id: null,
+    requirement_target: "business_fact",
+    business_fact_key: "registered_entity_in_israel",
+    business_fact_type: "boolean",
+    requirement_type: "threshold",
+    comparison_operator: "=",
+    value: true,
+    value_secondary: null,
+    unit: null,
+    period: null,
+    scope: null,
+    code_comparable: true,
+    requires_manual_review: false,
+    logic_type: "simple",
+    stage: "eligibility",
+    is_critical: true,
+  }];
+  const profile = {
+    registered_entity_in_israel: {
+      business_fact_type: "boolean",
+      unit: null,
+      value: true,
+      status: "known",
+      aliases: ["israeli_registered_entity"],
+    },
+  };
+
+  const output = buildComparisonResults(requirements, profile, "2027-01-01");
+
+  assert.equal(output.results.by_requirement_id.r1.status, "met");
+  assert.deepEqual(output.results.counts, { met: 1, gap: 0, review: 0, missing: 0 });
+  assert.equal(output.results.critical_attention_count, 0);
+});
+
+test("the complete code comparison stays below two seconds", () => {
+  const requirements = Array.from({ length: 5000 }, (_, index) => ({
+    requirement_id: `r-${index}`,
+    parent_requirement_id: null,
+    requirement_target: "business_fact",
+    business_fact_key: `fact_${index}`,
+    business_fact_type: "number",
+    requirement_type: "threshold",
+    comparison_operator: ">=",
+    value: 1,
+    value_secondary: null,
+    unit: "items",
+    period: null,
+    scope: null,
+    code_comparable: true,
+    requires_manual_review: false,
+    logic_type: "simple",
+    stage: "eligibility",
+    is_critical: false,
+  }));
+  const profile = Object.fromEntries(requirements.map((item) => [item.business_fact_key, {
+    business_fact_type: "number",
+    unit: "items",
+    value: 2,
+    status: "known",
+  }]));
+  const started = performance.now();
+  const output = buildComparisonResults(requirements, profile, "2027-01-01");
+  const elapsed = performance.now() - started;
+
+  assert.equal(output.results.counts.met, 5000);
+  assert.ok(elapsed < 2000, `full comparison took ${elapsed.toFixed(1)}ms`);
 });

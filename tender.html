@@ -13,7 +13,7 @@
   <body>
     <header class="app-header">
       <a class="brand brand-link" href="upload.html"><span class="brand-mark" aria-hidden="true">TF</span><span>TenderFit</span></a>
-      <nav class="header-actions"><a class="button button-text" href="upload.html">מכרז חדש</a><button id="logout-button" class="button button-text" type="button">התנתק</button></nav>
+      <nav class="header-actions"><a class="button button-text" href="profile.html">נתוני העסק</a><a class="button button-text" href="upload.html">מכרז חדש</a><button id="logout-button" class="button button-text" type="button">התנתק</button></nav>
     </header>
     <main class="wide-content">
       <div id="page-message" class="status-box" data-state="working"><span aria-hidden="true">…</span><span>טוען את המכרז…</span></div>
@@ -34,9 +34,42 @@
           <p id="metadata-warning" class="inline-warning" hidden>חילוץ פרטי המכרז נכשל. הדרישות שחולצו עדיין מוצגות.</p>
         </article>
 
+        <section class="card comparison-overview" aria-labelledby="comparison-title">
+          <header class="overview-heading">
+            <div><p class="eyebrow">תמונת מצב</p><h2 id="comparison-title">התאמת הדרישות לעסק</h2></div>
+            <button id="compare-button" class="button button-secondary" type="button">בדוק שוב</button>
+          </header>
+          <div id="compare-message" class="status-box" data-state="working" aria-live="polite" hidden><span aria-hidden="true">…</span><span>משווה את הדרישות לנתוני העסק…</span></div>
+          <div class="result-counters" aria-label="מוני תוצאות">
+            <div data-status="gap"><span aria-hidden="true">✕</span><strong id="gap-count">0</strong><small>פער</small></div>
+            <div data-status="missing"><span aria-hidden="true">?</span><strong id="missing-count">0</strong><small>חסר מידע</small></div>
+            <div data-status="review"><span aria-hidden="true">!</span><strong id="review-count">0</strong><small>דורש בדיקה</small></div>
+            <div data-status="met"><span aria-hidden="true">✓</span><strong id="met-count">0</strong><small>עומד</small></div>
+          </div>
+          <div class="compliance-row"><span>אחוז עמידה בדרישות אטומיות</span><strong><bdi id="compliance-percent">—</bdi></strong></div>
+          <div id="segmented-bar" class="segmented-bar" aria-label="התפלגות תוצאות"></div>
+          <p id="critical-summary" class="critical-summary"></p>
+          <p id="comparison-summary" class="comparison-summary"></p>
+          <p class="comparison-disclaimer">החישוב מבוסס על נתוני העסק ועל תנאים שניתנים להשוואה בקוד. אינו המלצה.</p>
+        </section>
+
+        <section id="missing-facts-section" class="missing-facts-section" aria-labelledby="missing-facts-title" hidden>
+          <header class="section-heading"><div><p class="eyebrow">השלמת מידע</p><h2 id="missing-facts-title">נתונים חסרים</h2></div><a class="button button-text" href="profile.html">לכל נתוני העסק</a></header>
+          <p class="muted">שמירת נתון כאן מעדכנת גם את פרופיל העסק. לאחר השמירה לחצו "בדוק שוב".</p>
+          <div id="missing-facts-list" class="missing-facts-list"></div>
+        </section>
+
         <section class="requirements-section" aria-labelledby="requirements-title">
           <header class="section-heading"><div><p class="eyebrow">עם עקיבות למקור</p><h2 id="requirements-title">דרישות המכרז</h2></div><span id="manual-review-count" class="review-chip"></span></header>
+          <div id="result-filters" class="filter-row" role="group" aria-label="סינון דרישות לפי תוצאה">
+            <button class="filter-chip is-active" type="button" data-filter="all">הכול</button>
+            <button class="filter-chip" type="button" data-filter="gap">✕ פער</button>
+            <button class="filter-chip" type="button" data-filter="missing">? חסר מידע</button>
+            <button class="filter-chip" type="button" data-filter="review">! דורש בדיקה</button>
+            <button class="filter-chip" type="button" data-filter="met">✓ עומד</button>
+          </div>
           <div id="empty-state" class="card empty-state" hidden>⚠ לא אותרו דרישות. בדוק את המסמך</div>
+          <div id="filter-empty" class="card empty-state" hidden>אין דרישות בתוצאה שנבחרה.</div>
           <div id="requirements-list" class="requirements-list"></div>
         </section>
       </section>

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="נתוני העסק שמשמשים להשוואת דרישות מכרזים ב-TenderFit">
+    <title>TenderFit | נתוני העסק</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand brand-link" href="upload.html"><span class="brand-mark" aria-hidden="true">TF</span><span>TenderFit</span></a>
+      <nav class="header-actions"><a class="button button-text" href="upload.html">מכרזים</a><button id="logout-button" class="button button-text" type="button">התנתק</button></nav>
+    </header>
+    <main class="wide-content">
+      <header class="page-heading">
+        <p class="eyebrow">פרופיל העסק</p>
+        <h1>נתונים להשוואה מול מכרזים</h1>
+        <p>הנתונים נשמרים פעם אחת ומשמשים בכל המכרזים. אפשר לערוך אותם בכל עת.</p>
+      </header>
+      <div id="profile-message" class="status-box" data-state="working" aria-live="polite"><span aria-hidden="true">…</span><span>טוען את נתוני העסק…</span></div>
+      <section id="facts-section" hidden aria-labelledby="facts-title">
+        <header class="section-heading"><div><p class="eyebrow">Business Facts</p><h2 id="facts-title">נתוני העסק</h2></div><span id="facts-count" class="review-chip"></span></header>
+        <p id="facts-empty" class="card empty-state" hidden>עדיין אין נתונים להשוואה. פתח מכרז מעובד כדי ליצור את רשימת הנתונים הנדרשת.</p>
+        <div id="facts-list" class="facts-list"></div>
+      </section>
+    </main>
+    <script type="module" src="js/profile.js"></script>
+  </body>
+</html>

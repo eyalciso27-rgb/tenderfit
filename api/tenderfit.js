@@ -4,9 +4,14 @@ import { GoogleGenAI } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 import Ajv from "ajv";
 
+import businessFactsRegistry from "../data/business-facts-registry.json" with { type: "json" };
+import unitsRegistry from "../data/units.json" with { type: "json" };
+import { aggregateComparison } from "../lib/aggregate.js";
 import { loadExtractorBaseline, loadMapperBaseline, loadMetadataBaseline } from "../lib/baseline.js";
 import { assertAiBudgetAvailable, BudgetExceededError } from "../lib/budget.js";
+import { compareAtomicRequirement } from "../lib/comparison.js";
 import { fillExtractorPrompt, getRegion, prefixRegionRequirementIds } from "../lib/extractor.js";
+import { ensureBusinessFacts } from "../lib/facts.js";
 import { estimateGeminiCost } from "../lib/pricing.js";
 import { conservativeDedup, normalizeStructuralParents, prepareAjvSchema, validateRequirements } from "../lib/validate.js";
 
@@ -917,6 +922,100 @@ async function runValidate(supabase, tender) {
   }
 }
 
+export function buildComparisonResults(requirements, profileFacts, submissionDeadline) {
+  const normalized = ensureBusinessFacts(requirements, profileFacts, businessFactsRegistry);
+  const atomicResults = {};
+  for (const requirement of requirements ?? []) {
+    const factKey = normalized.requirementFactKeys[requirement.requirement_id] ?? null;
+    atomicResults[requirement.requirement_id] = compareAtomicRequirement(
+      requirement,
+      factKey ? normalized.facts[factKey] : null,
+      { factKey, submissionDeadline, units: unitsRegistry },
+    );
+  }
+  return {
+    facts: normalized.facts,
+    results: aggregateComparison(requirements, atomicResults),
+  };
+}
+
+async function loadBusinessProfile(supabase, userId) {
+  const { data, error } = await supabase
+    .from("business_profile")
+    .select("business_facts")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw new ApiError(500, "database_error", "לא הצלחנו לקרוא את פרופיל העסק.");
+  return data;
+}
+
+async function saveBusinessFacts(supabase, userId, businessFacts) {
+  const { error } = await supabase
+    .from("business_profile")
+    .upsert({
+      user_id: userId,
+      business_facts: businessFacts,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id" });
+  if (error) throw new ApiError(500, "database_error", "לא הצלחנו לשמור את נתוני העסק החסרים.");
+}
+
+async function runCompare(supabase, user, tender) {
+  if (stepRecord(tender, "validate").status !== "done") {
+    throw new ApiError(409, "validation_required", "יש להשלים את חילוץ הדרישות לפני ההשוואה.");
+  }
+  const current = stepRecord(tender, "compare");
+  if (current.status === "running" && !isStaleRunning(current)) {
+    throw new ApiError(409, "step_already_running", "ההשוואה כבר רצה.");
+  }
+
+  const startedAtMs = Date.now();
+  tender = await updateTender(supabase, tender, {
+    processing: withStep(tender, "compare", {
+      status: "running",
+      started_at: new Date(startedAtMs).toISOString(),
+      finished_at: null,
+      attempts: Number(current.attempts ?? 0) + 1,
+      error: null,
+    }),
+  });
+
+  try {
+    const profile = await loadBusinessProfile(supabase, user.id);
+    const compared = buildComparisonResults(
+      tender.requirements ?? [],
+      profile?.business_facts ?? {},
+      tender.submission_deadline,
+    );
+    await saveBusinessFacts(supabase, user.id, compared.facts);
+    const finishedAt = new Date().toISOString();
+    const durationMs = Date.now() - startedAtMs;
+    tender = await updateTender(supabase, tender, {
+      results: compared.results,
+      analysis_updated_at: finishedAt,
+      processing: withStep(tender, "compare", {
+        status: "done",
+        finished_at: finishedAt,
+        duration_ms: durationMs,
+        error: null,
+      }),
+    });
+    return {
+      tender,
+      data: {
+        tender_id: tender.id,
+        duration_ms: durationMs,
+        counts: compared.results.counts,
+        critical_attention_count: compared.results.critical_attention_count,
+        compliance_percent: compared.results.compliance_percent,
+      },
+    };
+  } catch (error) {
+    await markStepFailed(supabase, tender, "compare", error.code ?? "comparison_failed");
+    throw error;
+  }
+}
+
 export default async function handler(request, response) {
   const step = typeof request.query?.step === "string" ? request.query.step : null;
   setCorsHeaders(request, response);
@@ -928,7 +1027,7 @@ export default async function handler(request, response) {
       throw new ApiError(405, "method_not_allowed", "שיטת הבקשה אינה נתמכת.");
     }
 
-    const { supabase } = await authenticate(request);
+    const { supabase, user } = await authenticate(request);
     if (!step || !ALLOWED_STEP_SET.has(step)) {
       throw new ApiError(400, "unknown_step", "שלב העיבוד אינו מוכר.");
     }
@@ -959,7 +1058,12 @@ export default async function handler(request, response) {
       return sendSuccess(response, step, "done", result.data);
     }
 
-    throw new ApiError(501, "step_not_implemented_in_m2", "השלב מוגדר, אך ימומש בשלב מאוחר יותר.");
+    if (step === "compare") {
+      const result = await runCompare(supabase, user, tender);
+      return sendSuccess(response, step, "done", result.data);
+    }
+
+    throw new ApiError(501, "step_not_implemented", "השלב מוגדר, אך טרם מומש.");
   } catch (error) {
     if (error instanceof BudgetExceededError) {
       return sendError(response, step, 402, error.code, "הגעת לתקרת העלות של ה־AI.");
