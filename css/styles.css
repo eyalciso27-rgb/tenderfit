@@ -842,6 +842,76 @@ blockquote {
   gap: 0.8rem;
 }
 
+.source-tables-section,
+.source-tables-list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.source-table-card {
+  min-width: 0;
+  padding: 1rem;
+}
+
+.source-table-card > summary {
+  overflow-wrap: anywhere;
+}
+
+.table-scroll {
+  margin-top: 0.8rem;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.extracted-table {
+  width: 100%;
+  min-width: 880px;
+  border-collapse: collapse;
+  text-align: right;
+}
+
+.extracted-table th,
+.extracted-table td {
+  padding: 0.65rem;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.extracted-table th {
+  color: var(--color-text-secondary);
+  background: var(--color-app-background);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.extracted-table td {
+  min-width: 5rem;
+  overflow-wrap: anywhere;
+}
+
+.extracted-table td:nth-child(5) {
+  min-width: 22rem;
+}
+
+.source-page-link {
+  min-height: 44px;
+  padding-inline: 0;
+}
+
+.table-reference-notice {
+  margin: 0.85rem 0 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px dashed var(--color-missing);
+  border-radius: 8px;
+  color: var(--color-missing-text);
+  background: #fffbf7;
+}
+
+.table-reference-notice .source-page-link {
+  color: var(--color-link);
+}
+
 .missing-facts-list,
 .facts-list {
   display: grid;

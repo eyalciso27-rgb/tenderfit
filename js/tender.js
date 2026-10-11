@@ -1,6 +1,7 @@
 import { FACT_STATUS, RESULT_STATUS, formatFactValue, inputKindForFact, parseFactInput } from "./fact-values.js";
 import { callPipelineStep } from "./pipeline.js";
 import { organizeRequirements } from "./requirement-tree.js";
+import { groupTableRequirements, referencesTable } from "./source-tables.js";
 import { supabase } from "./supabase.js";
 import { calculateUrgency, formatDeadline } from "./urgency.js";
 
@@ -15,6 +16,7 @@ let profile = null;
 let currentUser = null;
 let registryByKey = new Map();
 let activeFilter = "all";
+let sourcePdfUrl = null;
 
 function text(id, value) { document.querySelector(`#${id}`).textContent = value ?? "—"; }
 function bidi(value) { const bdi = document.createElement("bdi"); bdi.textContent = value; return bdi; }
@@ -54,6 +56,18 @@ function resultBadge(status) {
   badge.dataset.status = status;
   badge.textContent = `${meta.icon} ${meta.label}`;
   return badge;
+}
+
+function sourcePageLink(requirement, label = "פתח עמוד מקור") {
+  if (!sourcePdfUrl) return null;
+  const link = document.createElement("a");
+  link.className = "button button-text source-page-link";
+  link.target = "_blank";
+  link.rel = "noopener";
+  const page = Number(requirement.source_page);
+  link.href = Number.isFinite(page) ? `${sourcePdfUrl}#page=${page}` : sourcePdfUrl;
+  link.textContent = label;
+  return link;
 }
 
 function createFactInput(key, fact) {
@@ -184,7 +198,16 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
   const quote = document.createElement("blockquote"); quote.append(bidi(requirement.source_quote || "לא סופק ציטוט"));
   source.append(summary, quote);
   if (requirement.cell_text) { const cell = document.createElement("p"); cell.className = "cell-text"; cell.append("תא בטבלה: ", bidi(requirement.cell_text)); source.append(cell); }
+  const sourceLink = sourcePageLink(requirement, referencesTable(requirement) ? "פתח את הטבלה בעמוד המקור" : "פתח עמוד מקור");
+  if (sourceLink) source.append(sourceLink);
   article.append(source);
+  if (referencesTable(requirement)) {
+    const notice = document.createElement("p"); notice.className = "table-reference-notice";
+    notice.append("הסעיף מפנה לטבלה במסמך. ");
+    const tableLink = sourcePageLink(requirement, "הצג את הטבלה המקורית");
+    if (tableLink) notice.append(tableLink);
+    article.append(notice);
+  }
 
   const nextAncestors = new Set(ancestorIds);
   nextAncestors.add(requirement.requirement_id);
@@ -253,9 +276,52 @@ function renderMissingFacts() {
   section.hidden = missing.length === 0;
 }
 
+function renderSourceTables() {
+  const section = document.querySelector("#source-tables-section");
+  const list = document.querySelector("#source-tables-list");
+  const groups = groupTableRequirements(tender.requirements ?? []);
+  list.replaceChildren();
+  for (const group of groups) {
+    const details = document.createElement("details"); details.className = "card source-table-card";
+    const summary = document.createElement("summary");
+    const pages = [...new Set(group.requirements.map((item) => item.source_page).filter(Boolean))];
+    summary.textContent = `${group.title} · ${group.requirements.length} פריטים${pages.length ? ` · עמודים ${pages.join(", ")}` : ""}`;
+    const scroll = document.createElement("div"); scroll.className = "table-scroll";
+    const table = document.createElement("table"); table.className = "extracted-table";
+    const head = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    for (const label of ["מצב", "עמוד", "שורה", "עמודה", "תוכן שחולץ", "ערך נדרש", "מקור"]) {
+      const cell = document.createElement("th"); cell.scope = "col"; cell.textContent = label; headRow.append(cell);
+    }
+    head.append(headRow); table.append(head);
+    const body = document.createElement("tbody");
+    for (const requirement of group.requirements) {
+      const row = document.createElement("tr");
+      const result = resultFor(requirement);
+      const values = [
+        `${RESULT_STATUS[result.status]?.icon ?? "!"} ${RESULT_STATUS[result.status]?.label ?? "דורש בדיקה"}`,
+        requirement.source_page ?? "—",
+        requirement.row_index ?? "—",
+        requirement.column_index ?? "—",
+        requirement.cell_text || requirement.source_quote || requirement.requirement_text || "—",
+        requirement.value ?? "—",
+      ];
+      for (const value of values) { const cell = document.createElement("td"); cell.append(bidi(value)); row.append(cell); }
+      const linkCell = document.createElement("td");
+      const link = sourcePageLink(requirement, "פתח עמוד");
+      if (link) linkCell.append(link); else linkCell.textContent = "—";
+      row.append(linkCell); body.append(row);
+    }
+    table.append(body); scroll.append(table); details.append(summary, scroll); list.append(details);
+  }
+  text("source-tables-count", `${groups.length} טבלאות · ${groups.reduce((sum, group) => sum + group.requirements.length, 0)} פריטים`);
+  section.hidden = groups.length === 0;
+}
+
 function renderAll() {
   renderOverview();
   renderMissingFacts();
+  renderSourceTables();
   renderRequirements();
 }
 
@@ -314,6 +380,8 @@ async function load() {
   const registry = await registryResponse.json();
   registryByKey = new Map((registry.facts ?? []).map((item) => [item.business_fact_key, item]));
   await refreshData();
+  const signedUrlResult = await supabase.storage.from("tender-pdfs").createSignedUrl(tender.pdf_path, 3600);
+  if (!signedUrlResult.error) sourcePdfUrl = signedUrlResult.data?.signedUrl ?? null;
   renderTenderHeader();
   pageMessage.hidden = true; content.hidden = false;
   if (tender.processing?.steps?.compare?.status !== "done" || !tender.results?.by_requirement_id) await compare();
