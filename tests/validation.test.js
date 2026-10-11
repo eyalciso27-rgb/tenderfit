@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { conservativeDedup, prepareAjvSchema, validateRequirements } from "../lib/validate.js";
+import { conservativeDedup, normalizeStructuralParents, prepareAjvSchema, validateRequirements } from "../lib/validate.js";
 
 function requirement(id, quote = "נדרש רישיון תקף") {
   return {
@@ -38,4 +38,20 @@ test("an atomic all_of requirement is not mistaken for a structural parent", () 
     value: null, business_fact_type: null, requires_manual_review: false,
   }], schema);
   assert.equal(result.semanticErrors.includes("structural_parent_comparable:insurance"), false);
+});
+
+test("a real structural parent is conservatively normalized before validation", () => {
+  const input = [
+    { requirement_id: "parent", parent_requirement_id: null, code_comparable: true },
+    { requirement_id: "child", parent_requirement_id: "parent", code_comparable: true },
+  ];
+  const result = normalizeStructuralParents(input);
+  assert.equal(result.requirements[0].code_comparable, false);
+  assert.equal(result.requirements[1].code_comparable, true);
+  assert.deepEqual(result.log[0], {
+    action: "normalized_parent_non_comparable",
+    requirement_id: "parent",
+    previous_value: true,
+    new_value: false,
+  });
 });

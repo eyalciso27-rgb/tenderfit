@@ -8,7 +8,7 @@ import { loadExtractorBaseline, loadMapperBaseline, loadMetadataBaseline } from 
 import { assertAiBudgetAvailable, BudgetExceededError } from "../lib/budget.js";
 import { fillExtractorPrompt, getRegion, prefixRegionRequirementIds } from "../lib/extractor.js";
 import { estimateGeminiCost } from "../lib/pricing.js";
-import { conservativeDedup, prepareAjvSchema, validateRequirements } from "../lib/validate.js";
+import { conservativeDedup, normalizeStructuralParents, prepareAjvSchema, validateRequirements } from "../lib/validate.js";
 
 export const ALLOWED_STEPS = Object.freeze([
   "upload",
@@ -894,7 +894,8 @@ async function runValidate(supabase, tender) {
       region.region_id,
       tender.region_outputs?.[region.region_id]?.requirements ?? [],
     ));
-    const validation = validateRequirements(merged, baseline.schema);
+    const normalized = normalizeStructuralParents(merged);
+    const validation = validateRequirements(normalized.requirements, baseline.schema);
     if (!validation.ok) {
       console.error("Requirements semantic validation failed", {
         schemaErrors: validation.schemaErrors.map(({ index, errors }) => ({ index, errors })),
@@ -902,11 +903,11 @@ async function runValidate(supabase, tender) {
       });
       throw new ApiError(422, "requirements_validation_failed", `ולידציית הדרישות נכשלה (${validation.schemaErrors.length + validation.semanticErrors.length} שגיאות).`);
     }
-    const deduped = conservativeDedup(merged);
+    const deduped = conservativeDedup(normalized.requirements);
     const completedAt = new Date().toISOString();
     tender = await updateTender(supabase, tender, {
       requirements: deduped.requirements,
-      dedup_log: deduped.log,
+      dedup_log: [...normalized.log, ...deduped.log],
       processing: withStep(tender, "validate", { status: "done", finished_at: completedAt, error: null, warnings: validation.warnings }),
     });
     return { tender, data: { tender_id: tender.id, requirement_count: deduped.requirements.length, duplicate_count: deduped.log.filter((entry) => entry.action === "removed_exact").length, warnings: validation.warnings } };
