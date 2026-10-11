@@ -1119,6 +1119,24 @@ blockquote {
   background: var(--color-mint-icon);
 }
 
+.chip-critical {
+  color: #991b1b;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  font-weight: 700;
+}
+
+.requirement-card[data-critical="true"] {
+  border-inline-start: 4px solid #ef4444;
+}
+
+.fact-context {
+  margin: 0.25rem 0 0.5rem;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
 .filter-row {
   display: flex;
   flex-wrap: wrap;
@@ -1137,10 +1155,22 @@ blockquote {
   font-weight: 600;
 }
 
+.filter-chip-critical {
+  color: #991b1b;
+  border-color: #fca5a5;
+  background: #fff5f5;
+}
+
 .filter-chip.is-active {
   border-color: var(--color-accent-dark);
   color: #ffffff;
   background: var(--color-accent-dark);
+}
+
+.filter-chip-critical.is-active {
+  color: #ffffff;
+  background: #dc2626;
+  border-color: #dc2626;
 }
 
 @media (max-width: 520px) {

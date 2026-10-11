@@ -6,6 +6,7 @@ import {
   formatFactValue,
   inputKindForFact,
   parseFactInput,
+  questionForFact,
 } from "./fact-values.js";
 import { callPipelineStep } from "./pipeline.js";
 import { markAffectedTenderAnalysesStale, markResultsStale } from "./analysis-staleness.js";
@@ -69,9 +70,21 @@ function detailRow(label, value) {
   row.append(term, data); return row;
 }
 
-function labelForFact(key) {
+function labelForFact(key, fallbackRequirement = null) {
   const fact = profile?.business_facts?.[key];
-  return fact?.title_he || fact?.description_he || registryByKey.get(key)?.description_he || "נתון עסק נוסף";
+  const registryFact = registryByKey.get(key);
+  const q = questionForFact(key, fact, registryFact);
+  if (q && q !== "נתון עסק נדרש") return q;
+  if (fact?.title_he) return fact.title_he;
+  if (registryFact?.title_he) return registryFact.title_he;
+  if (fact?.description_he) return fact.description_he;
+  if (registryFact?.description_he) return registryFact.description_he;
+  if (fallbackRequirement?.requirement_text) return fallbackRequirement.requirement_text;
+  if (fallbackRequirement?.source_quote) return fallbackRequirement.source_quote;
+  if (typeof key === "string" && key) {
+    return key.replace(/_/g, " ");
+  }
+  return "נתון עסק נדרש";
 }
 
 function resultFor(requirement) {
@@ -212,7 +225,9 @@ function factEditor(key, fallbackRequirement = null) {
     updated_at: null,
   };
   const form = document.createElement("form"); form.className = "inline-fact-form";
-  const label = document.createElement("label"); label.textContent = labelForFact(key);
+  const label = document.createElement("label");
+  const unitLabel = formatFactUnit(fact.unit || fallbackRequirement?.unit);
+  label.textContent = unitLabel ? `ערך העסק (${unitLabel}):` : "ערך העסק:";
   const input = createFactInput(key, fact);
   const button = document.createElement("button"); button.type = "submit"; button.className = "button button-secondary"; button.textContent = fact.status === "missing" ? "השלם נתון" : "שמור שינוי";
   const feedback = document.createElement("p"); feedback.className = "inline-save-message"; feedback.setAttribute("aria-live", "polite");
@@ -385,7 +400,12 @@ function tenderResponseForm(requirement) {
 const statusWeight = { gap: 0, missing: 1, review: 2, met: 3 };
 
 function subtreeMatches(requirement, childrenByParent) {
-  if (activeFilter === "all" || resultFor(requirement).status === activeFilter) return true;
+  if (activeFilter === "all") return true;
+  if (activeFilter === "critical") {
+    if (requirement.is_critical) return true;
+    return (childrenByParent.get(requirement.requirement_id) ?? []).some((child) => subtreeMatches(child, childrenByParent));
+  }
+  if (resultFor(requirement).status === activeFilter) return true;
   return (childrenByParent.get(requirement.requirement_id) ?? []).some((child) => subtreeMatches(child, childrenByParent));
 }
 
@@ -393,9 +413,16 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
   const result = resultFor(requirement);
   const customerResponse = responseFor(requirement);
   const article = document.createElement("article"); article.className = "card requirement-card"; article.dataset.status = result.status;
+  article.dataset.critical = String(Boolean(requirement.is_critical));
   const header = document.createElement("header");
   const chips = document.createElement("div"); chips.className = "chip-row";
   chips.append(resultBadge(result.status));
+  if (requirement.is_critical) {
+    const criticalChip = document.createElement("span");
+    criticalChip.className = "chip chip-critical";
+    criticalChip.textContent = "⚠ תנאי סף קריטי";
+    chips.append(criticalChip);
+  }
   if (customerResponse) {
     const responseMeta = RESPONSE_STATUS_META[customerResponse.response_status];
     const responseChip = document.createElement("span");
@@ -405,6 +432,9 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
   }
   if (requirement.requirement_target === "evaluation_rule") {
     const evaluation = document.createElement("span"); evaluation.className = "chip chip-evaluation"; evaluation.textContent = "סעיף ניקוד · אינו תנאי סף"; chips.append(evaluation);
+  }
+  if (requirement.source_type === "table" || requirement.table_id) {
+    const tableChip = document.createElement("span"); tableChip.className = "chip"; tableChip.textContent = "פריט טבלה"; chips.append(tableChip);
   }
   for (const value of [requirement.category, requirement.requirement_type]) {
     if (!value) continue;
@@ -544,7 +574,27 @@ function renderOverview() {
     bar.append(segment);
   }
   const critical = Number(results.critical_attention_count ?? 0);
-  text("critical-summary", critical ? `! ${critical} תנאי סף קריטיים דורשים תשומת לב.` : "✓ לא זוהו תנאי סף קריטיים שדורשים תשומת לב.");
+  const criticalSummaryElement = document.querySelector("#critical-summary");
+  if (critical) {
+    criticalSummaryElement.replaceChildren();
+    const textNode = document.createElement("span");
+    textNode.textContent = `! ${critical} תנאי סף קריטיים דורשים תשומת לב. `;
+    const filterBtn = document.createElement("button");
+    filterBtn.type = "button";
+    filterBtn.className = "button button-text";
+    filterBtn.textContent = "סנן לתנאי סף קריטיים";
+    filterBtn.addEventListener("click", () => {
+      activeFilter = "critical";
+      for (const candidate of document.querySelectorAll("[data-filter]")) {
+        candidate.classList.toggle("is-active", candidate.dataset.filter === "critical");
+      }
+      renderRequirements();
+      document.querySelector(".requirements-section").scrollIntoView({ behavior: "smooth" });
+    });
+    criticalSummaryElement.append(textNode, filterBtn);
+  } else {
+    criticalSummaryElement.textContent = "✓ לא זוהו תנאי סף קריטיים שדורשים תשומת לב.";
+  }
   text("comparison-summary", results.summary || "ההשוואה טרם הושלמה.");
 }
 
@@ -572,13 +622,22 @@ function renderTenderComparisonFacts() {
     const heading = document.createElement("div");
     heading.className = "fact-heading";
     const title = document.createElement("h3");
-    title.textContent = labelForFact(key);
+    title.textContent = labelForFact(key, requirement);
     const badge = document.createElement("span");
     badge.className = "result-badge";
     badge.dataset.status = statusKey;
     badge.textContent = `${status.icon} ${status.label}`;
     heading.append(title, badge);
-    card.append(heading, factEditor(key, requirement));
+
+    if (requirement?.requirement_text) {
+      const context = document.createElement("p");
+      context.className = "fact-context";
+      const sectionInfo = requirement.source_section ? `סעיף ${requirement.source_section} · ` : "";
+      context.textContent = `דרישת המכרז: ${sectionInfo}${requirement.requirement_text}`;
+      card.append(heading, context, factEditor(key, requirement));
+    } else {
+      card.append(heading, factEditor(key, requirement));
+    }
     list.append(card);
   }
   if (count) count.textContent = `${facts.length} נתונים להשוואה`;
