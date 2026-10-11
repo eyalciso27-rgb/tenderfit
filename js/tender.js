@@ -462,7 +462,18 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
     if (customerResponse.reminder_on) responseSummary.append(detailRow("יעד לתזכורת", customerResponse.reminder_on));
     article.append(responseSummary);
   }
-  if (result.status === "missing" && factKey) article.append(factEditor(factKey, requirement));
+  if (factKey) {
+    if (result.status === "missing") {
+      article.append(factEditor(factKey, requirement));
+    } else {
+      const editDetails = document.createElement("details");
+      editDetails.className = "tender-response-form";
+      const editSummary = document.createElement("summary");
+      editSummary.textContent = "עריכת נתון להשוואה למכרז הזה";
+      editDetails.append(editSummary, factEditor(factKey, requirement));
+      article.append(editDetails);
+    }
+  }
   if (!childrenByParent.has(requirement.requirement_id)) article.append(tenderResponseForm(requirement));
 
   const fields = document.createElement("div"); fields.className = "requirement-fields";
@@ -537,27 +548,41 @@ function renderOverview() {
   text("comparison-summary", results.summary || "ההשוואה טרם הושלמה.");
 }
 
-function renderMissingFacts() {
-  const section = document.querySelector("#missing-facts-section");
-  const list = document.querySelector("#missing-facts-list");
+function renderTenderComparisonFacts() {
+  const section = document.querySelector("#tender-facts-section") || document.querySelector("#missing-facts-section");
+  if (!section) return;
+  const list = document.querySelector("#tender-facts-list") || document.querySelector("#missing-facts-list");
+  const count = document.querySelector("#tender-facts-count");
   const seen = new Set();
-  const missing = [];
+  const facts = [];
   for (const requirement of tender.requirements ?? []) {
     const result = resultFor(requirement);
-    const key = result.business_fact_key;
-    if (result.status !== "missing" || !key || seen.has(key)) continue;
-    seen.add(key); missing.push([key, requirement]);
+    const key = result.business_fact_key || requirement.business_fact_key;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    facts.push([key, requirement]);
   }
+  facts.sort(([first], [second]) => labelForFact(first).localeCompare(labelForFact(second), "he"));
   list.replaceChildren();
-  for (const [key, requirement] of missing) {
-    const card = document.createElement("article"); card.className = "card missing-fact-card";
-    const status = FACT_STATUS[profile.business_facts?.[key]?.status ?? "missing"] ?? FACT_STATUS.missing;
-    const heading = document.createElement("div"); heading.className = "fact-heading";
-    const title = document.createElement("h3"); title.textContent = labelForFact(key);
-    const badge = document.createElement("span"); badge.className = "result-badge"; badge.dataset.status = "missing"; badge.textContent = `${status.icon} ${status.label}`;
-    heading.append(title, badge); card.append(heading, factEditor(key, requirement)); list.append(card);
+  for (const [key, requirement] of facts) {
+    const card = document.createElement("article");
+    card.className = "card missing-fact-card";
+    const statusKey = profile.business_facts?.[key]?.status ?? "missing";
+    const status = FACT_STATUS[statusKey] ?? FACT_STATUS.missing;
+    const heading = document.createElement("div");
+    heading.className = "fact-heading";
+    const title = document.createElement("h3");
+    title.textContent = labelForFact(key);
+    const badge = document.createElement("span");
+    badge.className = "result-badge";
+    badge.dataset.status = statusKey;
+    badge.textContent = `${status.icon} ${status.label}`;
+    heading.append(title, badge);
+    card.append(heading, factEditor(key, requirement));
+    list.append(card);
   }
-  section.hidden = missing.length === 0;
+  if (count) count.textContent = `${facts.length} נתונים להשוואה`;
+  section.hidden = facts.length === 0;
 }
 
 function renderSourceTables() {
@@ -604,7 +629,7 @@ function renderSourceTables() {
 
 function renderAll() {
   renderOverview();
-  renderMissingFacts();
+  renderTenderComparisonFacts();
   renderSourceTables();
   renderRequirements();
 }

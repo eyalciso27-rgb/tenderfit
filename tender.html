@@ -13,7 +13,7 @@
   <body>
     <header class="app-header">
       <a class="brand brand-link" href="upload.html"><span class="brand-mark" aria-hidden="true">TF</span><span>TenderFit</span></a>
-      <nav class="header-actions"><a class="button button-text" href="profile.html">נתוני העסק</a><a class="button button-text" href="upload.html">מכרז חדש</a><button id="logout-button" class="button button-text" type="button">התנתק</button></nav>
+      <nav class="header-actions"><a class="button button-text" href="profile.html">פרטי העסק</a><a class="button button-text" href="upload.html">מכרז חדש</a><button id="logout-button" class="button button-text" type="button">התנתק</button></nav>
     </header>
     <main class="wide-content">
       <div id="page-message" class="status-box" data-state="working"><span aria-hidden="true">…</span><span>טוען את המכרז…</span></div>
@@ -55,10 +55,13 @@
           <p class="comparison-disclaimer">החישוב מבוסס על נתוני העסק ועל תנאים שניתנים להשוואה בקוד. אינו המלצה.</p>
         </section>
 
-        <section id="missing-facts-section" class="missing-facts-section" aria-labelledby="missing-facts-title" hidden>
-          <header class="section-heading"><div><p class="eyebrow">השלמת מידע</p><h2 id="missing-facts-title">נתונים חסרים</h2></div><a class="button button-text" href="profile.html">לכל נתוני העסק</a></header>
-          <p class="muted">שמירת נתון כאן מעדכנת גם את פרופיל העסק. לאחר השמירה לחצו "בדוק שוב".</p>
-          <div id="missing-facts-list" class="missing-facts-list"></div>
+        <section id="tender-facts-section" class="missing-facts-section" aria-labelledby="tender-facts-title" hidden>
+          <header class="section-heading">
+            <div><p class="eyebrow">השלמה ועריכה</p><h2 id="tender-facts-title">נתונים להשוואה למכרז הזה</h2></div>
+            <span id="tender-facts-count" class="review-chip"></span>
+          </header>
+          <p class="muted">השלמה ועריכה של נתוני העסק המשמשים להשוואת הדרישות במכרז הזה. שמירת נתון מעדכנת את פרופיל העסק; לאחר השמירה לחצו "בדוק שוב".</p>
+          <div id="tender-facts-list" class="missing-facts-list"></div>
         </section>
 
         <section id="source-tables-section" class="source-tables-section" aria-labelledby="source-tables-title" hidden>

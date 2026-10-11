@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="פרטי העסק והיכולות שמשמשות להשוואת דרישות מכרזים ב-TenderFit">
-    <title>TenderFit | נתוני העסק</title>
+    <meta name="description" content="פרטי העסק ב-TenderFit">
+    <title>TenderFit | פרטי העסק</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -18,10 +18,10 @@
     <main class="wide-content">
       <header class="page-heading">
         <p class="eyebrow">פרופיל העסק</p>
-        <h1>העסק והיכולות שלו</h1>
-        <p>פרטי העסק נשמרים בנפרד מהיכולות שמשמשות להשוואה. דרישות ומענים של מכרז מסוים נשמרים רק באותו מכרז.</p>
+        <h1>פרטי העסק</h1>
+        <p>פרטי זיהוי וקשר של העסק. השלמה ועריכה של נתונים להשוואה מתבצעות ישירות במסך המכרז הרלוונטי.</p>
       </header>
-      <div id="profile-message" class="status-box" data-state="working" aria-live="polite"><span aria-hidden="true">…</span><span>טוען את נתוני העסק…</span></div>
+      <div id="profile-message" class="status-box" data-state="working" aria-live="polite"><span aria-hidden="true">…</span><span>טוען את פרטי העסק…</span></div>
       <section id="business-details-section" class="profile-section" hidden aria-labelledby="business-details-title">
         <header class="section-heading"><div><p class="eyebrow">מידע קבוע</p><h2 id="business-details-title">פרטי העסק</h2></div></header>
         <p class="section-explanation">פרטי זיהוי וקשר של העסק. הם אינם תנאי מכרז ואינם משמשים כתשובה לדרישה.</p>
@@ -33,12 +33,6 @@
           <label for="email">אימייל<input id="email" name="email" type="email" autocomplete="email"></label>
           <button id="save-business-details" class="button button-primary" type="submit">שמור פרטי עסק</button>
         </form>
-      </section>
-      <section id="facts-section" hidden aria-labelledby="facts-title">
-        <header class="section-heading"><div><p class="eyebrow">מידע לשימוש חוזר</p><h2 id="facts-title">יכולות ונתונים להשוואה</h2></div><div class="header-actions"><span id="facts-count" class="review-chip"></span><button id="load-demo-button" class="button button-secondary" type="button">טען נתוני דמו לבדיקה</button></div></header>
-        <p class="section-explanation">רק עובדות ויכולות חוזרות של העסק נשמרות כאן. דרישת מכרז, מענה, הסתייגות או התחייבות עתידית אינם נשמרים באזור זה.</p>
-        <p id="facts-empty" class="card empty-state" hidden>עדיין אין יכולות שמורות. נתון יישמר כאן רק לאחר שתזינו אותו במפורש.</p>
-        <div id="facts-list" class="facts-list"></div>
       </section>
     </main>
     <script type="module" src="js/profile.js"></script>

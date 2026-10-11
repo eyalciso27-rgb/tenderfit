@@ -40,3 +40,24 @@ test("migration does not mutate the stored profile object", () => {
   removeGeneratedMissingPlaceholders(original);
   assert.ok(original.generated);
 });
+
+test("business profile details do not overwrite existing business facts", () => {
+  const existingFacts = {
+    iso_27001: { value: true, status: "known", source: "user" },
+    annual_turnover: { value: 10000000, status: "known", source: "user" },
+  };
+  const input = {
+    legal_name: "חברה לדוגמה בע״מ",
+    company_number: "515151515",
+    contact_name: "דני",
+    phone: "050-1234567",
+    email: "dani@example.com",
+  };
+  const normalized = normalizeBusinessProfileDetails(input);
+  const updatedProfile = {
+    ...normalized,
+    business_facts: existingFacts,
+  };
+  assert.deepEqual(updatedProfile.business_facts, existingFacts);
+  assert.equal(updatedProfile.legal_name, "חברה לדוגמה בע״מ");
+});
