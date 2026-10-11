@@ -586,6 +586,17 @@ Baseline שנבחר: `Temperature = 0.1`.
 - Actual: System Instructions ו-Schema אוכפים שאין שדה החלטה ושפלט המשתמש הוא הסבר בלבד. הרצת מודל חיה טרם בוצעה.
 - Result: PARTIAL — baseline contract PASS; live model regression pending.
 
+## סיכום הצלחה עדכני ל-M5
+
+הסיכום כולל את עשרת מקרי ה-Regression של Extractor ואת ששת המקרים של F15 ו-F18:
+
+- PASS מלא: **10/16 (62.5%)**
+- PARTIAL: **4/16 (25%)**
+- PENDING: **2/16 (12.5%)**
+- PASS או PARTIAL עם Contract/Unit tests שעברו: **14/16 (87.5%)**
+
+המדד המחמיר הוא 62.5%, משום ש-PARTIAL ו-PENDING אינם נספרים כ-PASS. לא בוצעה הרצת AI נוספת בסגירת M5: ‏F15 עדיין חסר שתי הרצות קבלה מתועדות, ו-F18 אומת חי על מכרז אחד בלבד ללא הזרקת כשל חיה. כל 117 בדיקות הקוד, ה-Baseline וה-UI עברו ב-11.10.2026.
+
 ---
 
 # חלק ה' — Baselines
