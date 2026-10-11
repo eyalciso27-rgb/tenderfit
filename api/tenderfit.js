@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { GoogleGenAI } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
@@ -7,8 +7,9 @@ import Ajv from "ajv";
 import businessFactsRegistry from "../data/business-facts-registry.json" with { type: "json" };
 import unitsRegistry from "../data/units.json" with { type: "json" };
 import { aggregateComparison } from "../lib/aggregate.js";
+import { createFailedUsageEntry, createUsageReservation, summarizeAiUsage } from "../lib/ai-usage.js";
 import { loadExtractorBaseline, loadMapperBaseline, loadMetadataBaseline } from "../lib/baseline.js";
-import { assertAiBudgetAvailable, BudgetExceededError } from "../lib/budget.js";
+import { aiCallReservationUsd, assertAiBudgetAvailable, BudgetExceededError } from "../lib/budget.js";
 import { compareAtomicRequirement } from "../lib/comparison.js";
 import { fillExtractorPrompt, getRegion, prefixRegionRequirementIds } from "../lib/extractor.js";
 import { ensureBusinessFacts } from "../lib/facts.js";
@@ -230,29 +231,50 @@ async function waitForActiveFile(client, uploaded) {
   return file;
 }
 
-async function markStepFailed(supabase, tender, step, code) {
+async function failedUsage(tender, usageId, interaction, details, code) {
+  const existing = (Array.isArray(tender.ai_usage) ? tender.ai_usage : [])
+    .find((entry) => entry?.interaction_id === usageId || entry?.interaction_id === interaction?.id);
+  const replacement = await createFailedUsageEntry({
+    existing: existing ?? { interaction_id: usageId },
+    interaction,
+    details,
+    code,
+    fallbackCostUsd: aiCallReservationUsd(),
+  });
+  return replaceUsage(tender, usageId ?? replacement.interaction_id, replacement);
+}
+
+async function markStepFailed(supabase, tender, step, code, usage = null) {
   try {
-    return await updateTender(supabase, tender, {
+    const patch = {
       processing: withStep(tender, step, {
         status: "failed",
         finished_at: new Date().toISOString(),
         error: code,
       }),
-    });
+    };
+    if (usage) {
+      patch.ai_usage = await failedUsage(tender, usage.id, usage.interaction, usage.details, code);
+    }
+    return await updateTender(supabase, tender, patch);
   } catch {
     return tender;
   }
 }
 
-async function markRegionFailed(supabase, tender, regionId, code) {
+async function markRegionFailed(supabase, tender, regionId, code, usage = null) {
   try {
-    return await updateTender(supabase, tender, {
+    const patch = {
       processing: withRegion(tender, regionId, {
         status: "failed",
         finished_at: new Date().toISOString(),
         error: code,
       }),
-    });
+    };
+    if (usage) {
+      patch.ai_usage = await failedUsage(tender, usage.id, usage.interaction, usage.details, code);
+    }
+    return await updateTender(supabase, tender, patch);
   } catch {
     return tender;
   }
@@ -390,6 +412,18 @@ function replaceUsage(tender, interactionId, replacement) {
   return found ? next : [...next, replacement];
 }
 
+function reserveUsage(tender, details) {
+  const cost = aiCallReservationUsd();
+  return createUsageReservation({
+    id: `reservation:${randomUUID()}`,
+    component: details.component,
+    model: details.model,
+    pdfHash: tender.pdf_hash,
+    estimatedCostUsd: cost,
+    regionId: details.region_id,
+  });
+}
+
 function buildRegionStatuses(regions) {
   return Object.fromEntries(
     regions.map((region) => [region.region_id, { status: "pending", attempts: 0, error: null }]),
@@ -423,6 +457,7 @@ async function completeMap(supabase, tender, interaction, baseline) {
     completed_at: completedAt,
     duration_ms: Math.max(0, Date.now() - Date.parse(sentAt)),
     pdf_hash: tender.pdf_hash,
+    cost_measurement: "measured",
     ...usage,
   };
   const processing = cloneProcessing(tender);
@@ -453,29 +488,28 @@ async function completeMap(supabase, tender, interaction, baseline) {
   };
 }
 
-async function failMapInteraction(supabase, tender, interaction, code, { invalidateGeminiFile = false } = {}) {
+async function failMapInteraction(
+  supabase,
+  tender,
+  interaction,
+  code,
+  { invalidateGeminiFile = false, usageId = null } = {},
+) {
   const current = stepRecord(tender, "map");
   const completedAt = new Date().toISOString();
-  const usageEntry = {
+  const interactionId = usageId ?? interaction?.id ?? current.interaction_id;
+  const aiUsage = await failedUsage(tender, interactionId, interaction, {
     component: "mapper-v1.2",
     model: interaction?.model ?? "gemini-3.1-pro-preview",
-    interaction_id: interaction?.id ?? current.interaction_id,
-    status: "failed",
-    sent_at: current.sent_at,
-    completed_at: completedAt,
-    duration_ms: current.sent_at ? Math.max(0, Date.now() - Date.parse(current.sent_at)) : 0,
-    estimated_cost_usd: 0,
     pdf_hash: tender.pdf_hash,
-    error: code,
-  };
-  const interactionId = usageEntry.interaction_id;
+  }, code);
   const patch = {
     processing: withStep(tender, "map", {
       status: "failed",
       finished_at: completedAt,
       error: code,
     }),
-    ai_usage: replaceUsage(tender, interactionId, usageEntry),
+    ai_usage: aiUsage,
   };
   if (invalidateGeminiFile) patch.gemini_file = {};
   return updateTender(supabase, tender, patch);
@@ -542,7 +576,11 @@ async function startMap(supabase, tender, baseline) {
   if (!isUnexpiredActiveGeminiFile(tender) || stepRecord(tender, "upload").status !== "done") {
     throw new ApiError(409, "upload_required", "יש להשלים את שלב העלאת המסמך לפני המיפוי.");
   }
-  await assertAiBudgetAvailable(supabase, tender);
+  const reservation = reserveUsage(tender, {
+    component: "mapper-v1.2",
+    model: baseline.settings.model,
+  });
+  await assertAiBudgetAvailable(supabase, tender, reservation.estimated_cost_usd);
 
   const current = stepRecord(tender, "map");
   tender = await updateTender(supabase, tender, {
@@ -555,15 +593,17 @@ async function startMap(supabase, tender, baseline) {
       interaction_id: null,
       sent_at: null,
     }),
+    ai_usage: appendUsage(tender, reservation),
   });
 
+  let interaction;
   try {
     const { bytes, pdfHash } = await downloadTenderPdf(supabase, tender);
     if (pdfHash !== tender.pdf_hash) {
       throw new ApiError(409, "pdf_changed", "קובץ המכרז השתנה. יש להריץ upload מחדש.");
     }
     const client = createGeminiClient();
-    const interaction = await client.interactions.create({
+    interaction = await client.interactions.create({
       model: baseline.settings.model,
       system_instruction: baseline.systemInstruction,
       input: [
@@ -582,15 +622,12 @@ async function startMap(supabase, tender, baseline) {
     });
     const sentAt = new Date().toISOString();
     const usageEntry = {
-      component: "mapper-v1.2",
-      model: baseline.settings.model,
+      ...reservation,
       interaction_id: interaction.id,
       status: "waiting",
       sent_at: sentAt,
       completed_at: null,
       duration_ms: null,
-      estimated_cost_usd: 0,
-      pdf_hash: tender.pdf_hash,
     };
     tender = await updateTender(supabase, tender, {
       processing: withStep(tender, "map", {
@@ -599,7 +636,7 @@ async function startMap(supabase, tender, baseline) {
         sent_at: sentAt,
         error: null,
       }),
-      ai_usage: appendUsage(tender, usageEntry),
+      ai_usage: replaceUsage(tender, reservation.interaction_id, usageEntry),
     });
 
     return {
@@ -614,7 +651,9 @@ async function startMap(supabase, tender, baseline) {
       },
     };
   } catch (error) {
-    await markStepFailed(supabase, tender, "map", error.code ?? "mapper_submit_failed");
+    await failMapInteraction(supabase, tender, interaction, error.code ?? "mapper_submit_failed", {
+      usageId: reservation.interaction_id,
+    });
     if (error instanceof ApiError) throw error;
     throw new ApiError(502, "mapper_submit_failed", "שליחת המיפוי נכשלה. אפשר לנסות שוב.");
   }
@@ -695,28 +734,37 @@ async function startMetadata(supabase, tender, baseline) {
   if (stepRecord(tender, "upload").status !== "done") {
     throw new ApiError(409, "upload_required", "יש להשלים את שלב העלאת המסמך לפני חילוץ הפרטים.");
   }
-  await assertAiBudgetAvailable(supabase, tender);
+  const reservation = reserveUsage(tender, {
+    component: "metadata-f15-v1.0",
+    model: baseline.settings.model,
+  });
+  await assertAiBudgetAvailable(supabase, tender, reservation.estimated_cost_usd);
   const current = stepRecord(tender, "metadata");
   tender = await updateTender(supabase, tender, {
     processing: withStep(tender, "metadata", {
       status: "running", started_at: new Date().toISOString(), finished_at: null,
       attempts: Number(current.attempts ?? 0) + 1, error: null, interaction_id: null, sent_at: null,
     }),
+    ai_usage: appendUsage(tender, reservation),
   });
+  let interaction;
   try {
-    const interaction = await submitInteraction(supabase, tender, baseline, baseline.userPrompt);
+    interaction = await submitInteraction(supabase, tender, baseline, baseline.userPrompt);
     const sentAt = new Date().toISOString();
     tender = await updateTender(supabase, tender, {
       processing: withStep(tender, "metadata", { status: "waiting", interaction_id: interaction.id, sent_at: sentAt, error: null }),
-      ai_usage: appendUsage(tender, {
-        component: "metadata-f15-v1.0", model: baseline.settings.model, interaction_id: interaction.id,
+      ai_usage: replaceUsage(tender, reservation.interaction_id, {
+        ...reservation, interaction_id: interaction.id,
         status: "waiting", sent_at: sentAt, completed_at: null, duration_ms: null,
-        estimated_cost_usd: 0, pdf_hash: tender.pdf_hash,
       }),
     });
     return { tender, waiting: true, data: waitingData(tender, interaction, sentAt) };
   } catch (error) {
-    await markStepFailed(supabase, tender, "metadata", error.code ?? "metadata_submit_failed");
+    await markStepFailed(supabase, tender, "metadata", error.code ?? "metadata_submit_failed", {
+      id: reservation.interaction_id,
+      interaction,
+      details: { component: "metadata-f15-v1.0", model: baseline.settings.model, pdf_hash: tender.pdf_hash },
+    });
     if (error instanceof ApiError) throw error;
     throw new ApiError(502, "metadata_submit_failed", "שליחת חילוץ פרטי המכרז נכשלה.");
   }
@@ -728,13 +776,21 @@ async function pollMetadata(supabase, tender, baseline) {
   const interaction = await createGeminiClient().interactions.get(current.interaction_id);
   if (PENDING_INTERACTION_STATUSES.has(interaction.status)) {
     if (isPendingInteractionExpired(interaction.status, current.sent_at)) {
-      await markStepFailed(supabase, tender, "metadata", "metadata_timeout");
+      await markStepFailed(supabase, tender, "metadata", "metadata_timeout", {
+        id: current.interaction_id,
+        interaction,
+        details: { component: "metadata-f15-v1.0", model: baseline.settings.model, pdf_hash: tender.pdf_hash },
+      });
       throw new ApiError(502, "metadata_timeout", "חילוץ פרטי המכרז לא הסתיים בתוך 15 דקות.");
     }
     return { tender, waiting: true, data: waitingData(tender, interaction, current.sent_at) };
   }
   if (interaction.status !== "completed") {
-    await markStepFailed(supabase, tender, "metadata", `metadata_${interaction.status}`);
+    await markStepFailed(supabase, tender, "metadata", `metadata_${interaction.status}`, {
+      id: current.interaction_id,
+      interaction,
+      details: { component: "metadata-f15-v1.0", model: baseline.settings.model, pdf_hash: tender.pdf_hash },
+    });
     throw new ApiError(502, "metadata_failed", "חילוץ פרטי המכרז נכשל.");
   }
   try {
@@ -747,7 +803,7 @@ async function pollMetadata(supabase, tender, baseline) {
       component: "metadata-f15-v1.0", model: interaction.model ?? baseline.settings.model,
       interaction_id: interaction.id, status: "completed", sent_at: current.sent_at,
       completed_at: completedAt, duration_ms: Math.max(0, Date.now() - Date.parse(current.sent_at)),
-      pdf_hash: tender.pdf_hash, ...usage,
+      pdf_hash: tender.pdf_hash, cost_measurement: "measured", ...usage,
     };
     tender = await updateTender(supabase, tender, {
       title: parsed.title || tender.title,
@@ -761,7 +817,11 @@ async function pollMetadata(supabase, tender, baseline) {
     return { tender, data: { tender_id: tender.id, duration_ms: usageEntry.duration_ms, usage, output: parsed } };
   } catch (error) {
     if (error instanceof ApiError && error.statusCode === 409) throw error;
-    await markStepFailed(supabase, tender, "metadata", error.code ?? "metadata_output_failed");
+    await markStepFailed(supabase, tender, "metadata", error.code ?? "metadata_output_failed", {
+      id: current.interaction_id,
+      interaction,
+      details: { component: "metadata-f15-v1.0", model: baseline.settings.model, pdf_hash: tender.pdf_hash },
+    });
     throw error;
   }
 }
@@ -784,7 +844,6 @@ function getRegionId(body) {
 }
 
 async function startExtract(supabase, tender, region, baseline) {
-  await assertAiBudgetAvailable(supabase, tender);
   const current = regionRecord(tender, region.region_id);
   if (!Number.isInteger(region.start_page) || !Number.isInteger(region.end_page)) {
     const completedAt = new Date().toISOString();
@@ -798,27 +857,40 @@ async function startExtract(supabase, tender, region, baseline) {
     });
     return { tender, data: { tender_id: tender.id, region_id: region.region_id, skipped: true } };
   }
+  const usageDetails = {
+    component: "extractor-v3.6",
+    region_id: region.region_id,
+    model: baseline.settings.model,
+    pdf_hash: tender.pdf_hash,
+  };
+  const reservation = reserveUsage(tender, usageDetails);
+  await assertAiBudgetAvailable(supabase, tender, reservation.estimated_cost_usd);
   tender = await updateTender(supabase, tender, {
     processing: withRegion(tender, region.region_id, {
       status: "running", started_at: new Date().toISOString(), finished_at: null,
       attempts: Number(current.attempts ?? 0) + 1, error: null, interaction_id: null, sent_at: null,
     }),
+    ai_usage: appendUsage(tender, reservation),
   });
+  let interaction;
   try {
     const prompt = fillExtractorPrompt(baseline.promptTemplate, region, baseline.regionContext);
-    const interaction = await submitInteraction(supabase, tender, baseline, prompt);
+    interaction = await submitInteraction(supabase, tender, baseline, prompt);
     const sentAt = new Date().toISOString();
     tender = await updateTender(supabase, tender, {
       processing: withRegion(tender, region.region_id, { status: "waiting", interaction_id: interaction.id, sent_at: sentAt, error: null }),
-      ai_usage: appendUsage(tender, {
-        component: "extractor-v3.6", region_id: region.region_id, model: baseline.settings.model,
-        interaction_id: interaction.id, status: "waiting", sent_at: sentAt, completed_at: null,
-        duration_ms: null, estimated_cost_usd: 0, pdf_hash: tender.pdf_hash,
+      ai_usage: replaceUsage(tender, reservation.interaction_id, {
+        ...reservation, interaction_id: interaction.id, status: "waiting", sent_at: sentAt,
+        completed_at: null, duration_ms: null,
       }),
     });
     return { tender, waiting: true, data: waitingData(tender, interaction, sentAt, { region_id: region.region_id }) };
   } catch (error) {
-    await markRegionFailed(supabase, tender, region.region_id, error.code ?? "extract_submit_failed");
+    await markRegionFailed(supabase, tender, region.region_id, error.code ?? "extract_submit_failed", {
+      id: reservation.interaction_id,
+      interaction,
+      details: usageDetails,
+    });
     if (error instanceof ApiError) throw error;
     throw new ApiError(502, "extract_submit_failed", "שליחת חילוץ האזור נכשלה.");
   }
@@ -830,13 +902,21 @@ async function pollExtract(supabase, tender, region, baseline) {
   const interaction = await createGeminiClient().interactions.get(current.interaction_id);
   if (PENDING_INTERACTION_STATUSES.has(interaction.status)) {
     if (isPendingInteractionExpired(interaction.status, current.sent_at)) {
-      await markRegionFailed(supabase, tender, region.region_id, "extract_timeout");
+      await markRegionFailed(supabase, tender, region.region_id, "extract_timeout", {
+        id: current.interaction_id,
+        interaction,
+        details: { component: "extractor-v3.6", region_id: region.region_id, model: baseline.settings.model, pdf_hash: tender.pdf_hash },
+      });
       throw new ApiError(502, "extract_timeout", "חילוץ האזור לא הסתיים בתוך 15 דקות.");
     }
     return { tender, waiting: true, data: waitingData(tender, interaction, current.sent_at, { region_id: region.region_id }) };
   }
   if (interaction.status !== "completed") {
-    await markRegionFailed(supabase, tender, region.region_id, `extract_${interaction.status}`);
+    await markRegionFailed(supabase, tender, region.region_id, `extract_${interaction.status}`, {
+      id: current.interaction_id,
+      interaction,
+      details: { component: "extractor-v3.6", region_id: region.region_id, model: baseline.settings.model, pdf_hash: tender.pdf_hash },
+    });
     throw new ApiError(502, "extract_failed", "חילוץ האזור נכשל.");
   }
   try {
@@ -854,7 +934,8 @@ async function pollExtract(supabase, tender, region, baseline) {
       component: "extractor-v3.6", region_id: region.region_id,
       model: interaction.model ?? baseline.settings.model, interaction_id: interaction.id,
       status: "completed", sent_at: current.sent_at, completed_at: completedAt,
-      duration_ms: Math.max(0, Date.now() - Date.parse(current.sent_at)), pdf_hash: tender.pdf_hash, ...usage,
+      duration_ms: Math.max(0, Date.now() - Date.parse(current.sent_at)), pdf_hash: tender.pdf_hash,
+      cost_measurement: "measured", ...usage,
     };
     tender = await updateTender(supabase, tender, {
       region_outputs: { ...(tender.region_outputs ?? {}), [region.region_id]: parsed },
@@ -864,7 +945,11 @@ async function pollExtract(supabase, tender, region, baseline) {
     return { tender, data: { tender_id: tender.id, region_id: region.region_id, requirement_count: parsed.requirements.length, duration_ms: usageEntry.duration_ms, usage } };
   } catch (error) {
     if (error instanceof ApiError && error.statusCode === 409) throw error;
-    await markRegionFailed(supabase, tender, region.region_id, error.code ?? "extract_output_failed");
+    await markRegionFailed(supabase, tender, region.region_id, error.code ?? "extract_output_failed", {
+      id: current.interaction_id,
+      interaction,
+      details: { component: "extractor-v3.6", region_id: region.region_id, model: baseline.settings.model, pdf_hash: tender.pdf_hash },
+    });
     throw error;
   }
 }
@@ -883,7 +968,15 @@ async function runExtract(supabase, tender, body) {
 
 async function runValidate(supabase, tender) {
   const current = stepRecord(tender, "validate");
-  if (current.status === "done") return { tender, data: { tender_id: tender.id, requirement_count: tender.requirements?.length ?? 0, reused: true } };
+  if (current.status === "done") return {
+    tender,
+    data: {
+      tender_id: tender.id,
+      requirement_count: tender.requirements?.length ?? 0,
+      usage_summary: summarizeAiUsage(tender.ai_usage),
+      reused: true,
+    },
+  };
   const regions = tender.regions?.regions ?? [];
   const unfinished = regions.filter((region) => regionRecord(tender, region.region_id).status !== "done");
   if (unfinished.length) throw new ApiError(409, "regions_incomplete", `נותרו ${unfinished.length} אזורים שלא הסתיימו.`);
@@ -915,7 +1008,16 @@ async function runValidate(supabase, tender) {
       dedup_log: [...normalized.log, ...deduped.log],
       processing: withStep(tender, "validate", { status: "done", finished_at: completedAt, error: null, warnings: validation.warnings }),
     });
-    return { tender, data: { tender_id: tender.id, requirement_count: deduped.requirements.length, duplicate_count: deduped.log.filter((entry) => entry.action === "removed_exact").length, warnings: validation.warnings } };
+    return {
+      tender,
+      data: {
+        tender_id: tender.id,
+        requirement_count: deduped.requirements.length,
+        duplicate_count: deduped.log.filter((entry) => entry.action === "removed_exact").length,
+        warnings: validation.warnings,
+        usage_summary: summarizeAiUsage(tender.ai_usage),
+      },
+    };
   } catch (error) {
     await markStepFailed(supabase, tender, "validate", error.code ?? "validation_failed");
     throw error;
