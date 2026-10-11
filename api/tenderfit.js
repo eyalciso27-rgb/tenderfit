@@ -1089,7 +1089,7 @@ async function loadBusinessProfile(supabase, userId) {
   return data;
 }
 
-async function saveBusinessFacts(supabase, userId, businessFacts) {
+async function saveMigratedBusinessFacts(supabase, userId, businessFacts) {
   const { error } = await supabase
     .from("business_profile")
     .upsert({
@@ -1097,7 +1097,7 @@ async function saveBusinessFacts(supabase, userId, businessFacts) {
       business_facts: businessFacts,
       updated_at: new Date().toISOString(),
     }, { onConflict: "user_id" });
-  if (error) throw new ApiError(500, "database_error", "לא הצלחנו לשמור את נתוני העסק החסרים.");
+  if (error) throw new ApiError(500, "database_error", "לא הצלחנו לנקות placeholders ישנים מפרופיל העסק.");
 }
 
 async function runCompare(supabase, user, tender) {
@@ -1124,7 +1124,7 @@ async function runCompare(supabase, user, tender) {
     const profile = await loadBusinessProfile(supabase, user.id);
     const migratedProfile = removeGeneratedMissingPlaceholders(profile?.business_facts ?? {});
     if (migratedProfile.removedKeys.length) {
-      await saveBusinessFacts(supabase, user.id, migratedProfile.facts);
+      await saveMigratedBusinessFacts(supabase, user.id, migratedProfile.facts);
     }
     const compared = buildComparisonResults(
       tender.requirements ?? [],
