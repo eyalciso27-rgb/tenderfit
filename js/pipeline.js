@@ -102,6 +102,13 @@ async function startUntilAccepted(step, tenderId, extra, onProgress) {
   }
 }
 
+export async function runPipelineStepUntilDone(step, tenderId, extra = {}, onProgress) {
+  const initial = await startUntilAccepted(step, tenderId, extra, onProgress);
+  return initial.status === "done"
+    ? initial
+    : runUntilDone(step, tenderId, extra, onProgress);
+}
+
 async function fetchTender(tenderId) {
   const { data, error } = await supabase.from("tenders").select("*").eq("id", tenderId).single();
   if (error) throw new Error("לא הצלחנו לקרוא את מצב המכרז.");

@@ -891,6 +891,82 @@ blockquote {
   padding: 1.25rem;
 }
 
+.fit-analysis-card {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+}
+
+.fit-analysis-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.fit-analysis-heading h2,
+.fit-analysis-card p,
+.fit-section h3 {
+  margin: 0;
+}
+
+.fit-analysis-state {
+  padding: 0.65rem 0.8rem;
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  background: var(--color-app-background);
+}
+
+.fit-analysis-state[data-state="success"] {
+  color: var(--color-success-text);
+  background: var(--color-success-background);
+}
+
+.fit-analysis-state[data-state="error"] {
+  color: var(--color-error-text);
+  background: var(--color-error-background);
+}
+
+.fit-analysis-content {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.fit-summary,
+.fit-important-note {
+  padding: 0.8rem;
+  border-radius: 8px;
+  background: var(--color-info-background);
+}
+
+.fit-section {
+  padding: 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.fit-section h3 {
+  font-size: 1rem;
+}
+
+.fit-section ul {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.65rem 0 0;
+  padding-right: 1.25rem;
+}
+
+.fit-section li span {
+  display: block;
+  color: var(--color-text-secondary);
+}
+
+.fit-important-note {
+  color: var(--color-review-text);
+  background: var(--color-review-background);
+}
+
 .overview-heading,
 .fact-heading,
 .compliance-row {
@@ -1322,7 +1398,8 @@ blockquote {
 
   .overview-heading,
   .section-heading,
-  .decision-heading {
+  .decision-heading,
+  .fit-analysis-heading {
     align-items: stretch;
     flex-direction: column;
   }

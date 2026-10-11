@@ -15,7 +15,7 @@ import {
   translateSourceType,
   translateToHebrew,
 } from "./fact-values.js";
-import { callPipelineStep } from "./pipeline.js";
+import { runPipelineStepUntilDone } from "./pipeline.js";
 import { markAffectedTenderAnalysesStale, markResultsStale } from "./analysis-staleness.js";
 import { organizeRequirements } from "./requirement-tree.js";
 import { groupTableRequirements, referencesTable } from "./source-tables.js";
@@ -739,6 +739,65 @@ function renderOverview() {
   text("comparison-summary", results.summary || "ההשוואה טרם הושלמה.");
 }
 
+function renderFitAnalysis() {
+  const state = document.querySelector("#fit-analysis-state");
+  const contentElement = document.querySelector("#fit-analysis-content");
+  const fit = tender.fit_analysis;
+  const compareStep = tender.processing?.steps?.compare ?? {};
+  contentElement.replaceChildren();
+
+  if (fit) {
+    state.dataset.state = "success";
+    state.textContent = "✓ ההסבר הופק לפי תוצאות הקוד";
+    const summary = document.createElement("p");
+    summary.className = "fit-summary";
+    summary.textContent = fit.summary;
+    contentElement.append(summary);
+    const sections = [
+      ["strengths", "נקודות חוזק", "✓"],
+      ["gaps", "פערים מרכזיים", "✕"],
+      ["missing_information", "מידע שכדאי להשלים", "?"],
+      ["review_priorities", "נושאים לבדיקה", "!"],
+    ];
+    for (const [key, title, icon] of sections) {
+      const items = fit[key] ?? [];
+      if (!items.length) continue;
+      const section = document.createElement("section");
+      section.className = "fit-section";
+      const heading = document.createElement("h3");
+      heading.textContent = `${icon} ${title}`;
+      const list = document.createElement("ul");
+      for (const item of items) {
+        const listItem = document.createElement("li");
+        const itemTitle = document.createElement("strong");
+        itemTitle.textContent = item.title;
+        const explanation = document.createElement("span");
+        explanation.textContent = item.explanation;
+        listItem.append(itemTitle, explanation);
+        list.append(listItem);
+      }
+      section.append(heading, list);
+      contentElement.append(section);
+    }
+    const note = document.createElement("p");
+    note.className = "fit-important-note";
+    note.textContent = fit.important_note;
+    contentElement.append(note);
+    return;
+  }
+
+  if (["running", "waiting"].includes(compareStep.status)) {
+    state.dataset.state = "working";
+    state.textContent = "… ההשוואה בקוד נשמרה. הסבר ה־AI עדיין בהכנה.";
+  } else if (compareStep.status === "failed") {
+    state.dataset.state = "error";
+    state.textContent = "✕ הסבר ה־AI נכשל. תוצאות ההשוואה בקוד נשמרו ומוצגות כרגיל.";
+  } else {
+    state.dataset.state = "idle";
+    state.textContent = "הסבר ה־AI יופק לאחר לחיצה על „בדוק שוב”.";
+  }
+}
+
 function renderTenderComparisonFacts() {
   const section = document.querySelector("#tender-facts-section") || document.querySelector("#missing-facts-section");
   if (!section) return;
@@ -829,6 +888,7 @@ function renderSourceTables() {
 
 function renderAll() {
   renderOverview();
+  renderFitAnalysis();
   renderTenderComparisonFacts();
   renderSourceTables();
   renderRequirements();
@@ -859,15 +919,23 @@ async function refreshData() {
 async function compare(successCopy = null) {
   compareButton.disabled = true;
   const startedAt = performance.now();
-  setCompareMessage("working", "…", "משווה בקוד את דרישות המכרז לנתוני העסק…");
+  setCompareMessage("working", "…", "משווה בקוד ולאחר מכן מפיקה הסבר AI…");
   try {
-    await callPipelineStep("compare", tenderId);
+    await runPipelineStepUntilDone("compare", tenderId, {}, (event) => {
+      if (event.state === "waiting") setCompareMessage("working", "…", "תוצאות הקוד נשמרו. הסבר ה־AI עדיין בהכנה…");
+    });
     await refreshData();
     renderAll();
     const elapsed = performance.now() - startedAt;
-    setCompareMessage("success", "✓", successCopy ?? `ההשוואה הושלמה בתוך ${(elapsed / 1000).toFixed(2)} שניות. לא הופעלה קריאת AI.`);
+    setCompareMessage("success", "✓", successCopy ?? `ההשוואה והסבר ה־AI הושלמו בתוך ${(elapsed / 1000).toFixed(2)} שניות.`);
   } catch (error) {
-    setCompareMessage("error", "✕", error.message || "ההשוואה נכשלה.");
+    try {
+      await refreshData();
+      renderAll();
+    } catch {
+      // Keep the original failure message when refreshing the saved code results also fails.
+    }
+    setCompareMessage("error", "✕", error.message || "תוצאות הקוד נשמרו, אך הסבר ה־AI נכשל.");
   } finally {
     compareButton.disabled = false;
   }

@@ -8,12 +8,13 @@ import businessFactsRegistry from "../data/business-facts-registry.json" with { 
 import unitsRegistry from "../data/units.json" with { type: "json" };
 import { aggregateComparison } from "../lib/aggregate.js";
 import { createFailedUsageEntry, createUsageReservation, summarizeAiUsage } from "../lib/ai-usage.js";
-import { loadExtractorBaseline, loadMapperBaseline, loadMetadataBaseline } from "../lib/baseline.js";
+import { loadExtractorBaseline, loadFitAnalysisBaseline, loadMapperBaseline, loadMetadataBaseline } from "../lib/baseline.js";
 import { aiCallReservationUsd, assertAiBudgetAvailable, BudgetExceededError } from "../lib/budget.js";
 import { compareAtomicRequirement } from "../lib/comparison.js";
 import { removeGeneratedMissingPlaceholders } from "../lib/business-profile.js";
 import { fillExtractorPrompt, getRegion, prefixRegionRequirementIds } from "../lib/extractor.js";
 import { ensureBusinessFacts } from "../lib/facts.js";
+import { buildFitAnalysisContext, fillFitAnalysisPrompt, validateFitAnalysisSemantics } from "../lib/fit-analysis.js";
 import { normalizeTenderResponses } from "../lib/tender-response.js";
 import { createRegionPdfExcerpt, normalizeExcerptSourcePages } from "../lib/pdf-region.js";
 import { estimateGeminiCost } from "../lib/pricing.js";
@@ -1100,11 +1101,163 @@ async function saveMigratedBusinessFacts(supabase, userId, businessFacts) {
   if (error) throw new ApiError(500, "database_error", "לא הצלחנו לנקות placeholders ישנים מפרופיל העסק.");
 }
 
+const FIT_COMPONENT = "fit-f18-v1.0";
+
+function fitUsageDetails(tender, baseline) {
+  return { component: FIT_COMPONENT, model: baseline.settings.model, pdf_hash: tender.pdf_hash };
+}
+
+async function startFitAnalysis(supabase, tender, businessFacts, baseline) {
+  const reservation = reserveUsage(tender, {
+    component: FIT_COMPONENT,
+    model: baseline.settings.model,
+  });
+  await assertAiBudgetAvailable(supabase, tender, reservation.estimated_cost_usd);
+  tender = await updateTender(supabase, tender, {
+    ai_usage: appendUsage(tender, reservation),
+    fit_analysis: null,
+  });
+
+  let interaction;
+  try {
+    const context = buildFitAnalysisContext(tender, businessFacts);
+    const prompt = fillFitAnalysisPrompt(baseline.userPrompt, context);
+    interaction = await createGeminiClient().interactions.create({
+      model: baseline.settings.model,
+      system_instruction: baseline.systemInstruction,
+      input: [{ type: "text", text: prompt }],
+      generation_config: {
+        thinking_level: baseline.settings.thinking_level,
+        temperature: baseline.settings.temperature,
+      },
+      response_format: [{ type: "text", mime_type: "application/json", schema: baseline.schema }],
+      store: true,
+      background: true,
+    });
+    const sentAt = new Date().toISOString();
+    tender = await updateTender(supabase, tender, {
+      processing: withStep(tender, "compare", {
+        status: "waiting",
+        phase: "fit_analysis",
+        interaction_id: interaction.id,
+        sent_at: sentAt,
+        error: null,
+      }),
+      ai_usage: replaceUsage(tender, reservation.interaction_id, {
+        ...reservation,
+        interaction_id: interaction.id,
+        status: "waiting",
+        sent_at: sentAt,
+        completed_at: null,
+        duration_ms: null,
+      }),
+    });
+    return { tender, waiting: true, data: waitingData(tender, interaction, sentAt, { phase: "fit_analysis" }) };
+  } catch (error) {
+    await markStepFailed(supabase, tender, "compare", error.code ?? "fit_submit_failed", {
+      id: reservation.interaction_id,
+      interaction,
+      details: fitUsageDetails(tender, baseline),
+    });
+    if (error instanceof ApiError || error instanceof BudgetExceededError) throw error;
+    throw new ApiError(502, "fit_submit_failed", "תוצאות הקוד נשמרו, אבל שליחת הסבר ה־AI נכשלה.");
+  }
+}
+
+async function pollFitAnalysis(supabase, tender, baseline) {
+  const current = stepRecord(tender, "compare");
+  if (!current.interaction_id || !current.sent_at) {
+    throw new ApiError(500, "fit_state_invalid", "תוצאות הקוד נשמרו, אבל מצב הסבר ה־AI אינו תקין.");
+  }
+  const interaction = await createGeminiClient().interactions.get(current.interaction_id);
+  if (PENDING_INTERACTION_STATUSES.has(interaction.status)) {
+    if (isPendingInteractionExpired(interaction.status, current.sent_at)) {
+      await markStepFailed(supabase, tender, "compare", "fit_timeout", {
+        id: current.interaction_id,
+        interaction,
+        details: fitUsageDetails(tender, baseline),
+      });
+      throw new ApiError(502, "fit_timeout", "תוצאות הקוד נשמרו, אבל הסבר ה־AI לא הסתיים בתוך 15 דקות.");
+    }
+    return { tender, waiting: true, data: waitingData(tender, interaction, current.sent_at, { phase: "fit_analysis" }) };
+  }
+  if (interaction.status !== "completed") {
+    await markStepFailed(supabase, tender, "compare", `fit_${interaction.status}`, {
+      id: current.interaction_id,
+      interaction,
+      details: fitUsageDetails(tender, baseline),
+    });
+    throw new ApiError(502, "fit_failed", "תוצאות הקוד נשמרו, אבל הסבר ה־AI נכשל.");
+  }
+
+  try {
+    const parsed = parseAndValidateModelJson(interaction, baseline.schema, "fit_schema_invalid", "הסבר ה־AI לא תאם למבנה המאושר.");
+    const semantic = validateFitAnalysisSemantics(parsed, tender.results);
+    if (!semantic.valid) {
+      console.error("Fit Analysis semantic validation failed", { errors: semantic.errors });
+      throw new ApiError(502, "fit_semantics_invalid", "הסבר ה־AI לא תאם לתוצאות שחושבו בקוד.");
+    }
+    const completedAt = new Date().toISOString();
+    const usage = await estimateGeminiCost(interaction.usage);
+    const usageEntry = {
+      component: FIT_COMPONENT,
+      model: interaction.model ?? baseline.settings.model,
+      interaction_id: interaction.id,
+      status: "completed",
+      sent_at: current.sent_at,
+      completed_at: completedAt,
+      duration_ms: Math.max(0, Date.now() - Date.parse(current.sent_at)),
+      pdf_hash: tender.pdf_hash,
+      cost_measurement: "measured",
+      ...usage,
+    };
+    const fitAnalysis = {
+      ...parsed,
+      generated_at: completedAt,
+      component: FIT_COMPONENT,
+      analysis_updated_at: tender.analysis_updated_at,
+    };
+    tender = await updateTender(supabase, tender, {
+      fit_analysis: fitAnalysis,
+      processing: withStep(tender, "compare", {
+        status: "done",
+        phase: "complete",
+        finished_at: completedAt,
+        duration_ms: Math.max(0, Date.now() - Date.parse(current.started_at ?? current.sent_at)),
+        error: null,
+      }),
+      ai_usage: replaceUsage(tender, interaction.id, usageEntry),
+    });
+    return {
+      tender,
+      data: {
+        tender_id: tender.id,
+        counts: tender.results?.counts,
+        critical_attention_count: tender.results?.critical_attention_count,
+        compliance_percent: tender.results?.compliance_percent,
+        fit_analysis: fitAnalysis,
+        usage,
+      },
+    };
+  } catch (error) {
+    await markStepFailed(supabase, tender, "compare", error.code ?? "fit_output_failed", {
+      id: current.interaction_id,
+      interaction,
+      details: fitUsageDetails(tender, baseline),
+    });
+    throw error;
+  }
+}
+
 async function runCompare(supabase, user, tender) {
   if (stepRecord(tender, "validate").status !== "done") {
     throw new ApiError(409, "validation_required", "יש להשלים את חילוץ הדרישות לפני ההשוואה.");
   }
   const current = stepRecord(tender, "compare");
+  const fitBaseline = await loadFitAnalysisBaseline();
+  if (current.status === "waiting" && current.phase === "fit_analysis") {
+    return pollFitAnalysis(supabase, tender, fitBaseline);
+  }
   if (current.status === "running" && !isStaleRunning(current)) {
     throw new ApiError(409, "step_already_running", "ההשוואה כבר רצה.");
   }
@@ -1117,6 +1270,9 @@ async function runCompare(supabase, user, tender) {
       finished_at: null,
       attempts: Number(current.attempts ?? 0) + 1,
       error: null,
+      phase: "code_comparison",
+      interaction_id: null,
+      sent_at: null,
     }),
   });
 
@@ -1136,28 +1292,20 @@ async function runCompare(supabase, user, tender) {
       tender.results?.responses ?? {},
       tender.results?.manual_reviews ?? {},
     );
-    const finishedAt = new Date().toISOString();
+    const codeFinishedAt = new Date().toISOString();
     const durationMs = Date.now() - startedAtMs;
     tender = await updateTender(supabase, tender, {
       results: compared.results,
-      analysis_updated_at: finishedAt,
+      analysis_updated_at: codeFinishedAt,
       processing: withStep(tender, "compare", {
-        status: "done",
-        finished_at: finishedAt,
-        duration_ms: durationMs,
+        status: "running",
+        phase: "fit_analysis_submit",
+        code_finished_at: codeFinishedAt,
+        code_duration_ms: durationMs,
         error: null,
       }),
     });
-    return {
-      tender,
-      data: {
-        tender_id: tender.id,
-        duration_ms: durationMs,
-        counts: compared.results.counts,
-        critical_attention_count: compared.results.critical_attention_count,
-        compliance_percent: compared.results.compliance_percent,
-      },
-    };
+    return startFitAnalysis(supabase, tender, migratedProfile.facts, fitBaseline);
   } catch (error) {
     await markStepFailed(supabase, tender, "compare", error.code ?? "comparison_failed");
     throw error;
@@ -1208,7 +1356,7 @@ export default async function handler(request, response) {
 
     if (step === "compare") {
       const result = await runCompare(supabase, user, tender);
-      return sendSuccess(response, step, "done", result.data);
+      return sendSuccess(response, step, result.waiting ? "waiting" : "done", result.data);
     }
 
     throw new ApiError(501, "step_not_implemented", "השלב מוגדר, אך טרם מומש.");

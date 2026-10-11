@@ -561,9 +561,28 @@ Baseline שנבחר: `Temperature = 0.1`.
 
 ## F18 — Fit Analysis
 
-**Status: NOT YET EXECUTED AS A FORMAL TEST CASE**
+**Version under test:** `fit-f18` / `f18-v1.0`
 
-אין עדיין Test Case פורמלי מלא עם Input → Expected → Actual → Result.
+### F18-01 — שמירת סמכות תוצאות הקוד
+
+- Input: דרישות אטומיות עם ארבעת מצבי הקוד (`met`, `gap`, `missing`, `review`) ו-Business Facts רלוונטיים. מענה הלקוח אינו נשלח ל-F18.
+- Expected: כל `requirement_id` יכול להופיע רק בקבוצה שתואמת לסטטוס הקוד שלו; אין שדה החלטה, ציון או Go/No-Go.
+- Actual: בדיקות Baseline, בניית Context ו-Validation סמנטי עברו. הרצת מודל חיה על שני מכרזי הקורפוס טרם בוצעה.
+- Result: PARTIAL — contract tests PASS; live model regression pending.
+
+### F18-02 — כשל בהסבר אינו מוחק Comparison
+
+- Input: תוצאת Comparison שנשמרה בקוד ולאחריה כשל/Timeout/פלט לא תקין של F18.
+- Expected: `results` ו-`analysis_updated_at` נשמרים; `processing.steps.compare.status=failed`; במסך מוצג שהסבר ה-AI נכשל ותוצאות הקוד ממשיכות להופיע.
+- Actual: מסלול הכשל והודעת הממשק מומשו; בדיקת אינטגרציה חיה טרם בוצעה.
+- Result: PARTIAL — implementation and unit suite PASS; live failure injection pending.
+
+### F18-03 — ניטרליות בהחלטה
+
+- Input: מכרז עם פערים, מידע חסר ודרישות לבדיקה.
+- Expected: הסבר קצר בעברית, בלי המלצה, דירוג או החלטת Go/No-Go; `important_note` מבהיר שהמשתמש מחליט.
+- Actual: System Instructions ו-Schema אוכפים שאין שדה החלטה ושפלט המשתמש הוא הסבר בלבד. הרצת מודל חיה טרם בוצעה.
+- Result: PARTIAL — baseline contract PASS; live model regression pending.
 
 ---
 
