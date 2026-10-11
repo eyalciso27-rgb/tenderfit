@@ -12,3 +12,7 @@ test("urgency covers all five PRD levels", () => {
   assert.equal(calculateUrgency("2026-10-16T09:00:00.000Z", now).level, "medium");
   assert.equal(calculateUrgency("2026-10-17T09:00:01.000Z", now).level, "low");
 });
+
+test("a deadline that passed less than a day ago is ended", () => {
+  assert.equal(calculateUrgency("2026-10-09T08:59:59.000Z", now).level, "ended");
+});

@@ -28,11 +28,15 @@ function requirementCard(requirement, children = []) {
   header.append(chips, title); article.append(header);
 
   const fields = document.createElement("div"); fields.className = "requirement-fields";
-  fields.append(
-    detailRow("ערך", requirement.value), detailRow("יחידה", requirement.unit),
-    detailRow("תנאי", requirement.comparison_operator), detailRow("עמוד", requirement.source_page),
-    detailRow("סעיף", requirement.source_section),
-  );
+  const fieldValues = [
+    ["ערך", requirement.value], ["יחידה", requirement.unit],
+    ["תנאי", requirement.comparison_operator], ["עמוד", requirement.source_page],
+    ["סעיף", requirement.source_section], ["סוג מקור", requirement.source_type],
+    ["טבלה", requirement.table_id], ["שורה", requirement.row_index],
+  ];
+  for (const [label, value] of fieldValues) {
+    if (value !== null && value !== undefined && value !== "") fields.append(detailRow(label, value));
+  }
   article.append(fields);
 
   const source = document.createElement("details"); source.className = "source-details";

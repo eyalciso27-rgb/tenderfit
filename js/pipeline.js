@@ -1,11 +1,12 @@
 import { CONFIG } from "./config.js";
+import { shouldRetryRegion, shouldRetryStep } from "./pipeline-policy.js";
 import { supabase } from "./supabase.js";
 
 const POLL_INTERVAL_MS = 10_000;
 const CONFLICT_RETRY_MS = 1_200;
 const MAX_WAIT_MS = 15 * 60_000;
+const NETWORK_RETRY_LIMIT = 5;
 export const EXTRACT_CONCURRENCY = 8;
-const RETRYABLE_REGION_ERRORS = new Set(["extract_failed", "extract_timeout", "extract_schema_invalid", "invalid_model_json"]);
 
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -17,11 +18,24 @@ async function accessToken() {
 
 export async function callPipelineStep(step, tenderId, extra = {}) {
   const token = await accessToken();
-  const response = await fetch(`${CONFIG.apiBaseUrl}/api/tenderfit?step=${encodeURIComponent(step)}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ tender_id: tenderId, ...extra }),
-  });
+  let response;
+  for (let attempt = 0; attempt < NETWORK_RETRY_LIMIT; attempt += 1) {
+    try {
+      response = await fetch(`${CONFIG.apiBaseUrl}/api/tenderfit?step=${encodeURIComponent(step)}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ tender_id: tenderId, ...extra }),
+      });
+      break;
+    } catch {
+      if (attempt === NETWORK_RETRY_LIMIT - 1) {
+        const error = new Error("לא הצלחנו להתחבר לשרת. אפשר להמשיך מאותה נקודה.");
+        error.code = "network_error";
+        throw error;
+      }
+      await sleep(1_000 * (attempt + 1));
+    }
+  }
   const payload = await response.json().catch(() => ({
     ok: false,
     error: { code: "invalid_server_response", message: "השרת לא החזיר תשובה תקינה." },
@@ -33,6 +47,24 @@ export async function callPipelineStep(step, tenderId, extra = {}) {
     throw error;
   }
   return payload;
+}
+
+async function runModelStepWithRetry(step, tenderId, onProgress) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const initial = await startUntilAccepted(step, tenderId, {}, onProgress);
+      return initial.status === "done"
+        ? initial
+        : await runUntilDone(step, tenderId, {}, onProgress);
+    } catch (error) {
+      if (attempt === 0 && shouldRetryStep(step, error.code)) {
+        onProgress?.({ step, state: "retrying", error });
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error("העיבוד נכשל לאחר ניסיון חוזר.");
 }
 
 async function runUntilDone(step, tenderId, extra, onProgress) {
@@ -99,7 +131,7 @@ async function runRegionQueue(tenderId, regions, onProgress) {
           }
           break;
         } catch (error) {
-          if (attempt === 0 && RETRYABLE_REGION_ERRORS.has(error.code)) {
+          if (attempt === 0 && shouldRetryRegion(error.code)) {
             onProgress?.({ step: "extract", state: "retrying", regionId: region.region_id, regionTitle: region.title });
             continue;
           }
@@ -119,11 +151,9 @@ export async function processTender(tenderId, onProgress) {
 
   onProgress?.({ step: "map", state: "starting" });
   onProgress?.({ step: "metadata", state: "starting" });
-  const mapInitial = await startUntilAccepted("map", tenderId, {}, onProgress);
-  const metadataInitial = await startUntilAccepted("metadata", tenderId, {}, onProgress).catch((error) => ({ error }));
   const [mapResult, metadataResult] = await Promise.allSettled([
-    mapInitial.status === "done" ? mapInitial : runUntilDone("map", tenderId, {}, onProgress),
-    metadataInitial.error ? Promise.reject(metadataInitial.error) : metadataInitial.status === "done" ? metadataInitial : runUntilDone("metadata", tenderId, {}, onProgress),
+    runModelStepWithRetry("map", tenderId, onProgress),
+    runModelStepWithRetry("metadata", tenderId, onProgress),
   ]);
   if (mapResult.status === "rejected") throw mapResult.reason;
   if (metadataResult.status === "rejected") {

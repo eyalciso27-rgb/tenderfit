@@ -1,7 +1,7 @@
 import { supabase } from "./supabase.js";
 import { processTender } from "./pipeline.js";
+import { validateUploadFile } from "./upload-validation.js";
 
-const MAX_BYTES = 50 * 1024 * 1024;
 const fileInput = document.querySelector("#pdf-file");
 const dropZone = document.querySelector("#drop-zone");
 const fileCard = document.querySelector("#file-card");
@@ -15,6 +15,7 @@ const progressText = document.querySelector("#progress-text");
 const logoutButton = document.querySelector("#logout-button");
 let selectedFile = null;
 let completedRegions = new Set();
+let totalRegions = 0;
 
 function setStatus(state, text, percent = 0) {
   statusBox.hidden = false;
@@ -23,15 +24,9 @@ function setStatus(state, text, percent = 0) {
   progressBar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
 }
 
-function validateFile(file) {
-  if (!file || (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf"))) throw new Error("אפשר להעלות קובץ PDF בלבד.");
-  if (file.size > MAX_BYTES) throw new Error("הקובץ גדול מ־50MB.");
-  if (file.size === 0) throw new Error("הקובץ ריק.");
-}
-
 function selectFile(file) {
   try {
-    validateFile(file);
+    validateUploadFile(file);
     selectedFile = file;
     fileName.textContent = file.name;
     fileMeta.textContent = `${(file.size / 1024 / 1024).toFixed(1)} MB · PDF`;
@@ -74,10 +69,19 @@ async function createTender(file) {
 function progress(event) {
   const labels = { upload: "מכין את המסמך", map: "ממפה את המכרז", metadata: "מחלץ פרטי מכרז", extract: "מחלץ דרישות", validate: "בודק ומאחד דרישות" };
   const bases = { upload: 10, map: 22, metadata: 22, extract: 38, validate: 92 };
+  if (event.step === "extract" && event.state === "starting") {
+    completedRegions = new Set();
+    totalRegions = Number(event.total) || 0;
+  }
   if (event.step === "extract" && event.state === "done" && event.regionId) completedRegions.add(event.regionId);
-  const extractPercent = event.step === "extract" ? Math.min(50, completedRegions.size * 3) : 0;
+  const extractPercent = event.step === "extract" && totalRegions > 0
+    ? Math.round((completedRegions.size / totalRegions) * 50)
+    : 0;
   const percent = Math.min(98, (bases[event.step] ?? 5) + extractPercent);
-  const suffix = event.regionTitle ? ` — ${event.regionTitle}` : "";
+  const regionProgress = event.step === "extract" && totalRegions > 0
+    ? ` — אזור ${completedRegions.size} מתוך ${totalRegions}`
+    : "";
+  const suffix = event.regionTitle ? `${regionProgress}: ${event.regionTitle}` : regionProgress;
   setStatus(event.state === "failed" ? "error" : "working", `${labels[event.step] ?? "מעבד"}${suffix}…`, percent);
 }
 
@@ -101,7 +105,7 @@ for (const type of ["dragenter", "dragover"]) dropZone.addEventListener(type, (e
 for (const type of ["dragleave", "drop"]) dropZone.addEventListener(type, (event) => { event.preventDefault(); dropZone.classList.remove("is-dragging"); });
 dropZone.addEventListener("drop", (event) => selectFile(event.dataTransfer.files[0]));
 startButton.addEventListener("click", async () => {
-  try { validateFile(selectedFile); await run(await createTender(selectedFile)); }
+  try { validateUploadFile(selectedFile); await run(await createTender(selectedFile)); }
   catch (error) { setStatus("error", error.message, 0); startButton.disabled = false; }
 });
 continueButton.addEventListener("click", () => run(continueButton.dataset.tenderId));

@@ -5,8 +5,8 @@ export function calculateUrgency(deadline, now = new Date()) {
     return { level: "unknown", label: "מועד הגשה לא ידוע", days: null };
   }
   const due = new Date(deadline);
+  if (due.getTime() < now.getTime()) return { level: "ended", label: "מועד ההגשה עבר", days: -1 };
   const days = Math.ceil((due.getTime() - now.getTime()) / DAY_MS);
-  if (days < 0) return { level: "ended", label: "מועד ההגשה עבר", days };
   if (days <= 3) return { level: "high", label: "דחוף", days };
   if (days <= 7) return { level: "medium", label: "מתקרב", days };
   return { level: "low", label: "יש זמן", days };
