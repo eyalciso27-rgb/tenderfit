@@ -49,6 +49,27 @@ let decisionSaving = false;
 let activeReportRequirement = null;
 let reportedRequirementIds = new Set();
 
+function organizeDashboardLayout() {
+  const dashboard = document.querySelector(".tender-dashboard");
+  if (!dashboard || dashboard.querySelector(".tender-primary-column")) return;
+  const primary = document.createElement("div");
+  primary.className = "tender-primary-column";
+  const sidebar = document.createElement("aside");
+  sidebar.className = "tender-side-column";
+  sidebar.setAttribute("aria-label", "החלטה ומידע משלים");
+  for (const selector of [".requirements-section", "#source-tables-section"]) {
+    const element = dashboard.querySelector(selector);
+    if (element) primary.append(element);
+  }
+  for (const selector of ["#decision-card", "#tender-facts-section", "#fit-analysis-card", ".tender-metadata-sections"]) {
+    const element = dashboard.querySelector(selector);
+    if (element) sidebar.append(element);
+  }
+  dashboard.replaceChildren(primary, sidebar);
+}
+
+organizeDashboardLayout();
+
 const RESPONSE_STATUS_META = Object.freeze({
   met: { icon: "✓", label: "עומד" },
   gap: { icon: "✕", label: "לא עומד" },
@@ -829,8 +850,13 @@ function renderOverview() {
   document.querySelector("#analysis-stale-warning").hidden = results.stale !== true;
   const counts = results.counts ?? { gap: 0, missing: 0, review: 0, met: 0 };
   for (const status of ["gap", "missing", "review", "met"]) text(`${status}-count`, String(counts[status] ?? 0));
-  text("compliance-percent", results.compliance_percent === null || results.compliance_percent === undefined ? "לא מחושב" : `${results.compliance_percent}%`);
+  const compliancePercent = results.compliance_percent === null || results.compliance_percent === undefined
+    ? null
+    : Math.max(0, Math.min(100, Number(results.compliance_percent) || 0));
+  text("compliance-percent", compliancePercent === null ? "—" : `${compliancePercent}%`);
+  document.querySelector("#compliance-ring").style.setProperty("--compliance", String(compliancePercent ?? 0));
   const total = Object.values(counts).reduce((sum, value) => sum + Number(value || 0), 0);
+  text("analysis-total", `${total} דרישות אטומיות · נבדקו לפי כללים קבועים`);
   const bar = document.querySelector("#segmented-bar"); bar.replaceChildren();
   for (const status of ["gap", "missing", "review", "met"]) {
     const segment = document.createElement("span"); segment.dataset.status = status;

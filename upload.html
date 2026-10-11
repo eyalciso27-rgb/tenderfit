@@ -12,22 +12,25 @@
   </head>
   <body>
     <header class="app-header">
-      <a class="brand brand-link" href="upload.html"><span class="brand-mark" aria-hidden="true">TF</span><span>TenderFit</span></a>
-      <nav class="header-actions"><a class="button button-text" href="profile.html">נתוני העסק</a><button id="logout-button" class="button button-text" type="button">התנתק</button></nav>
+      <a class="brand brand-link" href="upload.html"><span class="brand-mark" aria-hidden="true">Y</span><span>TenderFit</span></a>
+      <nav class="header-actions" aria-label="ניווט ראשי"><a class="button button-text" href="upload.html"><span aria-hidden="true">▤</span> מכרזים</a><a class="button button-text is-active" href="upload.html" aria-current="page"><span aria-hidden="true">↥</span> מכרז חדש</a><a class="button button-text" href="profile.html"><span aria-hidden="true">♙</span> פרופיל העסק</a></nav>
+      <div class="account-actions"><button id="logout-button" class="button button-text" type="button">התנתק</button><span class="user-avatar" aria-hidden="true">מ</span></div>
     </header>
     <main class="content-column upload-column">
-      <header class="page-heading">
+      <header class="page-heading page-heading-centered">
         <p class="eyebrow">מכרז חדש</p>
-        <h1>מעלים PDF, ומקבלים דרישות והתאמה לעסק</h1>
-        <p>הקובץ נשמר באופן פרטי. גודל מרבי: 50MB.</p>
+        <h1>העלאת מכרז חדש</h1>
+        <p>מעלים PDF, והמערכת מחלצת את הדרישות ומשווה אותן לנתוני העסק.</p>
       </header>
 
       <section class="card upload-card" aria-labelledby="upload-title">
-        <h2 id="upload-title">בחירת קובץ</h2>
+        <h2 id="upload-title" class="visually-hidden">בחירת קובץ</h2>
         <label id="drop-zone" class="drop-zone" for="pdf-file">
-          <span class="upload-icon" aria-hidden="true">↑</span>
-          <strong>גררו לכאן PDF או לחצו לבחירה</strong>
-          <span>PDF בלבד · עד 50MB</span>
+          <span class="upload-icon" aria-hidden="true">▧</span>
+          <strong>גררו לכאן קובץ PDF</strong>
+          <span>או</span>
+          <span class="button button-secondary file-picker-button">בחרו קובץ</span>
+          <small>PDF בלבד · עד 50MB</small>
           <input id="pdf-file" class="visually-hidden" type="file" accept="application/pdf,.pdf">
         </label>
 
@@ -60,6 +63,7 @@
         </aside>
       </section>
     </main>
+    <nav class="mobile-nav" aria-label="ניווט תחתון"><a href="upload.html"><span aria-hidden="true">▤</span><small>מכרזים</small></a><a class="is-active" href="upload.html" aria-current="page"><span aria-hidden="true">↥</span><small>מכרז חדש</small></a><a href="profile.html"><span aria-hidden="true">♙</span><small>פרופיל העסק</small></a></nav>
     <script type="module" src="js/upload.js"></script>
   </body>
 </html>

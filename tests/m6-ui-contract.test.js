@@ -8,6 +8,9 @@ const pipelineScript = await readFile(new URL("../js/pipeline.js", import.meta.u
 const processingModel = await readFile(new URL("../lib/processing-status.js", import.meta.url), "utf8");
 const tenderHtml = await readFile(new URL("../tender.html", import.meta.url), "utf8");
 const tenderScript = await readFile(new URL("../js/tender.js", import.meta.url), "utf8");
+const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+const profileHtml = await readFile(new URL("../profile.html", import.meta.url), "utf8");
+const checklistHtml = await readFile(new URL("../checklist.html", import.meta.url), "utf8");
 
 test("F10 renders six persisted processing phases with words and icons", () => {
   assert.match(uploadHtml, /id="processing-title"/);
@@ -40,4 +43,16 @@ test("F22 exposes collapsible summary, dates and guarantees from saved F15 metad
 
 test("M6 does not add M7 tender-list or reminder features", () => {
   assert.doesNotMatch(uploadHtml + tenderHtml, /רשימת מכרזים|תזכורת במייל/);
+});
+
+test("existing M6 screens use the approved mobile shell and dashboard layout", () => {
+  for (const html of [uploadHtml, profileHtml, tenderHtml, checklistHtml]) {
+    assert.match(html, /class="mobile-nav"/);
+    assert.match(html, /class="app-header"/);
+  }
+  assert.match(tenderHtml, /class="tender-dashboard"/);
+  assert.match(tenderHtml, /id="compliance-ring"/);
+  assert.match(tenderScript, /organizeDashboardLayout/);
+  assert.match(styles, /grid-template-columns: minmax\(0, 1fr\) 340px/);
+  assert.match(styles, /bottom: 68px/);
 });
