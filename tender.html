@@ -39,7 +39,7 @@
 
         <section class="card comparison-overview" aria-labelledby="comparison-title">
           <header class="overview-heading">
-            <div><p class="eyebrow">תמונת מצב</p><h2 id="comparison-title">התאמת הדרישות לעסק</h2></div>
+            <div><p class="eyebrow">בדיקת מערכת</p><h2 id="comparison-title">בדיקה אוטומטית מול נתוני העסק</h2></div>
             <div class="overview-actions">
               <button id="compare-button" class="button button-secondary" type="button">עדכן את בדיקת ההתאמה</button>
               <button id="fit-analysis-toggle" class="button button-text" type="button" aria-expanded="false" aria-controls="fit-analysis-card">הצג הסבר AI</button>
@@ -58,6 +58,20 @@
             <div id="compliance-ring" class="compliance-ring" aria-label="אחוז עמידה"><strong><bdi id="compliance-percent">—</bdi></strong><span>עמידה</span></div>
             <div class="overview-summary-block"><div id="segmented-bar" class="segmented-bar" aria-label="התפלגות תוצאות"></div><p id="analysis-total" class="analysis-total"></p><p id="comparison-summary" class="comparison-summary"></p><p class="comparison-disclaimer">הבדיקה מבוססת על נתוני העסק ועל תנאים שניתנים לבדיקה אוטומטית. אינה המלצה.</p></div>
           </div>
+          <section id="customer-response-summary" class="customer-response-summary" aria-labelledby="customer-response-summary-title">
+            <header><div><p class="eyebrow">המענה שלך</p><h3 id="customer-response-summary-title">מצב התשובות למכרז</h3></div><strong id="customer-response-progress">0 מתוך 0</strong></header>
+            <div class="customer-response-stats" aria-label="סיכום תשובות המשתמש">
+              <span><strong id="customer-met-count">0</strong> עומד</span>
+              <span><strong id="customer-gap-count">0</strong> לא עומד</span>
+              <span><strong id="customer-attention-count">0</strong> דורש המשך טיפול</span>
+            </div>
+            <p id="customer-response-copy" class="customer-response-copy"></p>
+            <div id="customer-critical-alert" class="customer-critical-alert" role="alert" hidden>
+              <strong id="customer-critical-alert-title"></strong>
+              <p>תנאי סף כזה עלול למנוע השתתפות במכרז. מומלץ לבדוק את הדרישה והאסמכתאות לפני החלטת Go.</p>
+              <div id="customer-critical-list" class="customer-critical-list"></div>
+            </div>
+          </section>
         </section>
 
         <section id="fit-analysis-card" class="card fit-analysis-card" aria-labelledby="fit-analysis-title" hidden>
@@ -141,6 +155,7 @@
             <span id="decision-badge" class="decision-badge" data-decision="none">טרם נבחרה</span>
           </header>
           <p class="decision-neutrality">ההחלטה שלך בלבד. המערכת לא ממליצה Go או No-Go.</p>
+          <p id="decision-risk-warning" class="decision-risk-warning" role="alert" hidden></p>
           <div class="decision-actions" role="group" aria-label="בחירת החלטה למכרז">
             <button id="decision-go" class="button decision-button" type="button" data-decision="go">Go</button>
             <button id="decision-no-go" class="button decision-button" type="button" data-decision="no_go">No-Go</button>

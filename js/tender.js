@@ -38,6 +38,7 @@ import {
   requirementWorkflow,
   workflowProgress,
 } from "../lib/requirement-workflow.js";
+import { summarizeCustomerResponses } from "../lib/customer-response-summary.js";
 
 const params = new URLSearchParams(location.search);
 const tenderId = params.get("id");
@@ -562,6 +563,7 @@ function formatDecisionTime(value) {
 
 function renderDecision() {
   const decision = tender.decision ?? "none";
+  const responseSummary = customerResponseSummary();
   const badge = document.querySelector("#decision-badge");
   badge.dataset.decision = decision;
   badge.textContent = decision === "go" ? "✓ Go" : decision === "no_go" ? "✓ No-Go" : "טרם נבחרה";
@@ -574,6 +576,14 @@ function renderDecision() {
       : button.dataset.decision === "go" ? "Go" : "No-Go";
   }
   document.querySelector("#decision-updated-at").textContent = formatDecisionTime(tender.decision_updated_at);
+  const riskWarning = document.querySelector("#decision-risk-warning");
+  riskWarning.hidden = responseSummary.criticalGaps.length === 0;
+  const decisionCriticalLabel = responseSummary.criticalGaps.length === 1
+    ? "בתנאי סף קריטי אחד"
+    : `ב־${responseSummary.criticalGaps.length} תנאי סף קריטיים`;
+  riskWarning.textContent = responseSummary.criticalGaps.length
+    ? `⚠ לפני בחירת Go: סימנת „לא עומד” ${decisionCriticalLabel}.`
+    : "";
   const checklistLink = document.querySelector("#checklist-link");
   const checklistAvailable = decision === "go" && Array.isArray(tender.checklist);
   checklistLink.toggleAttribute("href", checklistAvailable);
@@ -975,6 +985,53 @@ function renderWorkflowProgress() {
   next.textContent = progress.remaining ? "למשימה הבאה" : "כל המשימות טופלו";
 }
 
+function customerResponseSummary() {
+  return summarizeCustomerResponses(
+    tender.requirements ?? [],
+    tender.results?.responses ?? {},
+  );
+}
+
+function renderCustomerResponseSummary() {
+  const summary = customerResponseSummary();
+  text("customer-response-progress", `${summary.answered} מתוך ${summary.total} נענו`);
+  text("customer-met-count", String(summary.counts.met));
+  text("customer-gap-count", String(summary.counts.gap));
+  text("customer-attention-count", String(summary.counts.partial + summary.counts.conditional + summary.counts.review));
+
+  const copy = document.querySelector("#customer-response-copy");
+  if (!summary.answered) {
+    copy.dataset.state = "idle";
+    copy.textContent = "עדיין לא נשמרו תשובות שלך. תוצאות המערכת שמעל אינן תחליף למענה שלך.";
+  } else if (summary.counts.gap) {
+    copy.dataset.state = "warning";
+    const gapLabel = summary.counts.gap === 1 ? "בדרישה אחת" : `ב־${summary.counts.gap} דרישות`;
+    copy.textContent = `סימנת „לא עומד” ${gapLabel}. התשובות שלך נשמרו, אך אינן משנות את תוצאת הבדיקה האוטומטית.`;
+  } else {
+    copy.dataset.state = "success";
+    copy.textContent = `${summary.answered} תשובות נשמרו. התוצאות האוטומטיות והתשובות שלך מוצגות בנפרד.`;
+  }
+
+  const alert = document.querySelector("#customer-critical-alert");
+  const alertTitle = document.querySelector("#customer-critical-alert-title");
+  const list = document.querySelector("#customer-critical-list");
+  alert.hidden = summary.criticalGaps.length === 0;
+  const alertCriticalLabel = summary.criticalGaps.length === 1
+    ? "בתנאי סף קריטי אחד"
+    : `ב־${summary.criticalGaps.length} תנאי סף קריטיים`;
+  alertTitle.textContent = summary.criticalGaps.length
+    ? `⚠ סימנת „לא עומד” ${alertCriticalLabel}`
+    : "";
+  list.replaceChildren(...summary.criticalGaps.map((item) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "button button-text";
+    button.textContent = translateToHebrew(item.text);
+    button.addEventListener("click", () => revealRequirementById(item.requirementId));
+    return button;
+  }));
+}
+
 function setWorkflowView(view) {
   activeWorkflowView = view;
   visibleRootLimit = 8;
@@ -993,6 +1050,30 @@ function openNextRequirement() {
   const atomicIds = atomicRequirementIds(tender.requirements ?? []);
   const target = [...document.querySelectorAll("details.requirement-card")]
     .find((card) => atomicIds.has(card.dataset.requirementId));
+  if (!target) return;
+  target.open = true;
+  let ancestor = target.parentElement?.closest("details.requirement-card");
+  while (ancestor) {
+    ancestor.open = true;
+    ancestor = ancestor.parentElement?.closest("details.requirement-card");
+  }
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
+  target.querySelector(":scope > summary")?.focus({ preventScroll: true });
+}
+
+function revealRequirementById(requirementId) {
+  activeWorkflowView = WORKFLOW_VIEW.ALL;
+  activeFilter = "all";
+  visibleRootLimit = Number.MAX_SAFE_INTEGER;
+  for (const button of document.querySelectorAll("[data-workflow-view]")) {
+    button.classList.toggle("is-active", button.dataset.workflowView === WORKFLOW_VIEW.ALL);
+  }
+  for (const button of document.querySelectorAll("[data-filter]")) {
+    button.classList.toggle("is-active", button.dataset.filter === "all");
+  }
+  renderRequirements();
+  const target = [...document.querySelectorAll("details.requirement-card")]
+    .find((card) => card.dataset.requirementId === requirementId);
   if (!target) return;
   target.open = true;
   let ancestor = target.parentElement?.closest("details.requirement-card");
@@ -1051,6 +1132,7 @@ function renderOverview() {
     criticalSummaryElement.textContent = "✓ לא זוהו תנאי סף קריטיים שדורשים תשומת לב.";
   }
   text("comparison-summary", userFacingAutomationText(results.summary || "ההשוואה טרם הושלמה."));
+  renderCustomerResponseSummary();
 }
 
 function renderFitAnalysis() {

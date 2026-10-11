@@ -2120,6 +2120,123 @@ details.requirement-card > :not(summary) {
   padding: 0;
 }
 
+.customer-response-summary {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-card);
+}
+
+.customer-response-summary > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.customer-response-summary h3,
+.customer-response-summary p {
+  margin: 0;
+}
+
+.customer-response-summary > header > strong {
+  color: var(--color-accent-dark);
+  white-space: nowrap;
+}
+
+.customer-response-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.customer-response-stats > span {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.65rem;
+  border-radius: 9px;
+  color: var(--color-text-secondary);
+  background: var(--color-app-background);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.customer-response-stats strong {
+  color: var(--color-text-primary);
+  font-size: 1.2rem;
+}
+
+.customer-response-copy {
+  padding: 0.7rem;
+  border-radius: 8px;
+  background: var(--color-info-background);
+}
+
+.customer-response-copy[data-state="warning"] {
+  color: var(--color-error-text);
+  background: var(--color-error-background);
+}
+
+.customer-response-copy[data-state="success"] {
+  color: var(--color-success-text);
+  background: var(--color-success-background);
+}
+
+.customer-critical-alert,
+.decision-risk-warning {
+  padding: 0.8rem;
+  border: 2px solid var(--color-error);
+  border-radius: 10px;
+  color: var(--color-error-text);
+  background: var(--color-error-background);
+}
+
+.customer-critical-alert {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.customer-critical-alert > strong {
+  font-size: 1.05rem;
+}
+
+.customer-critical-list {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.customer-critical-list .button-text {
+  justify-content: flex-start;
+  width: 100%;
+  color: var(--color-error-text);
+  text-align: start;
+  white-space: normal;
+}
+
+.decision-risk-warning {
+  margin: 0;
+  font-weight: 800;
+}
+
+@media (max-width: 599px) {
+  .customer-response-summary > header {
+    align-items: flex-start;
+  }
+
+  .customer-response-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .customer-response-stats > span {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    text-align: start;
+  }
+}
+
 .advanced-source-tables > summary {
   display: flex;
   justify-content: space-between;

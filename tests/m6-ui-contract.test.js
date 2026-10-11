@@ -64,10 +64,15 @@ test("the M6 tender page is a guided workspace instead of two long duplicate rep
   assert.match(tenderHtml, /data-workflow-view="attention"/);
   assert.match(tenderHtml, /למשימה הבאה/);
   assert.match(tenderHtml, /id="show-more-requirements"/);
+  assert.match(tenderHtml, /id="customer-response-summary"/);
+  assert.match(tenderHtml, /id="customer-critical-alert"/);
+  assert.match(tenderHtml, /id="decision-risk-warning"/);
   assert.doesNotMatch(tenderHtml, /נתונים להשוואה למכרז הזה/);
   assert.doesNotMatch(tenderScript, /לסעיף הזה אין Business Fact חוזר/);
   assert.match(tenderScript, /מענה למכרז הזה בלבד/);
   assert.match(tenderScript, /נדרשת תשובתך/);
+  assert.match(tenderScript, /summarizeCustomerResponses/);
+  assert.match(tenderScript, /תנאי סף קריטיים/);
   assert.match(tenderScript, /compareButton\.addEventListener\("click", \(\) => compare\(\)\)/);
   assert.match(styles, /M6 guided tender workspace/);
 });
