@@ -12,6 +12,7 @@ import { organizeRequirements } from "./requirement-tree.js";
 import { groupTableRequirements, referencesTable } from "./source-tables.js";
 import { supabase } from "./supabase.js";
 import { calculateUrgency, formatDeadline } from "./urgency.js";
+import { tenderDemoNotice } from "./demo-tender.js";
 
 const params = new URLSearchParams(location.search);
 const tenderId = params.get("id");
@@ -377,6 +378,10 @@ function renderTenderHeader() {
   const duration = Number(sessionStorage.getItem(`tenderfit.duration.${tender.id}`));
   text("duration", duration ? `${Math.round(duration / 1000)} שניות` : "לא נמדד בדפדפן זה");
   const urgencyBadge = document.querySelector("#urgency-badge"); urgencyBadge.textContent = urgency.label; urgencyBadge.dataset.level = urgency.level;
+  const demoNotice = tenderDemoNotice(tender.metadata);
+  const demoNoticeElement = document.querySelector("#demo-notice");
+  demoNoticeElement.hidden = !demoNotice;
+  demoNoticeElement.textContent = demoNotice ? `ⓘ ${demoNotice}` : "";
   const manualCount = (tender.requirements ?? []).filter((item) => item.requires_manual_review).length;
   text("manual-review-count", `${manualCount} לבדיקה ידנית`);
   document.querySelector("#metadata-warning").hidden = tender.processing?.steps?.metadata?.status !== "failed";
