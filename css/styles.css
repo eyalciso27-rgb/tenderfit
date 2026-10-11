@@ -387,6 +387,32 @@ textarea::placeholder {
   color: var(--color-text-secondary);
 }
 
+.profile-section + .profile-section,
+#facts-section {
+  margin-top: 1.5rem;
+}
+
+.section-explanation {
+  max-width: 70ch;
+  color: var(--color-text-secondary);
+}
+
+.business-details-form {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  border-right: 5px solid var(--color-primary);
+}
+
+.business-details-form label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.business-details-form .button {
+  align-self: end;
+}
+
 .upload-card {
   display: grid;
   gap: 1rem;
@@ -1146,6 +1172,14 @@ blockquote {
 
   .button-row {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .business-details-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .business-details-form .button {
+    width: max-content;
   }
 
   .upload-card,

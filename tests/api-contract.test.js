@@ -190,6 +190,33 @@ test("compare builds stored code results without a model response", () => {
   assert.equal(output.results.critical_attention_count, 0);
 });
 
+test("a tender requirement may create an in-memory missing comparison but cannot become stored business data", () => {
+  const profile = {};
+  const output = buildComparisonResults([{
+    requirement_id: "tender-only",
+    parent_requirement_id: null,
+    requirement_target: "business_fact",
+    business_fact_key: "tender_specific_capacity",
+    business_fact_type: "number",
+    requirement_type: "threshold",
+    comparison_operator: ">=",
+    value: 100,
+    value_secondary: null,
+    unit: "items",
+    period: null,
+    scope: null,
+    code_comparable: true,
+    requires_manual_review: false,
+    logic_type: "simple",
+    stage: "eligibility",
+    is_critical: false,
+  }], profile, "2027-01-01");
+
+  assert.deepEqual(profile, {});
+  assert.equal(output.facts.tender_specific_capacity.value, null);
+  assert.equal(output.results.by_requirement_id["tender-only"].status, "missing");
+});
+
 test("the complete code comparison stays below two seconds", () => {
   const requirements = Array.from({ length: 5000 }, (_, index) => ({
     requirement_id: `r-${index}`,

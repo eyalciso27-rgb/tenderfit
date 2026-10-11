@@ -11,6 +11,7 @@ import { createFailedUsageEntry, createUsageReservation, summarizeAiUsage } from
 import { loadExtractorBaseline, loadMapperBaseline, loadMetadataBaseline } from "../lib/baseline.js";
 import { aiCallReservationUsd, assertAiBudgetAvailable, BudgetExceededError } from "../lib/budget.js";
 import { compareAtomicRequirement } from "../lib/comparison.js";
+import { removeGeneratedMissingPlaceholders } from "../lib/business-profile.js";
 import { fillExtractorPrompt, getRegion, prefixRegionRequirementIds } from "../lib/extractor.js";
 import { ensureBusinessFacts } from "../lib/facts.js";
 import { normalizeTenderResponses } from "../lib/tender-response.js";
@@ -1121,9 +1122,13 @@ async function runCompare(supabase, user, tender) {
 
   try {
     const profile = await loadBusinessProfile(supabase, user.id);
+    const migratedProfile = removeGeneratedMissingPlaceholders(profile?.business_facts ?? {});
+    if (migratedProfile.removedKeys.length) {
+      await saveBusinessFacts(supabase, user.id, migratedProfile.facts);
+    }
     const compared = buildComparisonResults(
       tender.requirements ?? [],
-      profile?.business_facts ?? {},
+      migratedProfile.facts,
       tender.submission_deadline,
     );
     compared.results.responses = normalizeTenderResponses(
@@ -1131,7 +1136,6 @@ async function runCompare(supabase, user, tender) {
       tender.results?.responses ?? {},
       tender.results?.manual_reviews ?? {},
     );
-    await saveBusinessFacts(supabase, user.id, compared.facts);
     const finishedAt = new Date().toISOString();
     const durationMs = Date.now() - startedAtMs;
     tender = await updateTender(supabase, tender, {

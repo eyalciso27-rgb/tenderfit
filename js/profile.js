@@ -9,12 +9,20 @@ import {
 } from "./fact-values.js";
 import { markAffectedTenderAnalysesStale } from "./analysis-staleness.js";
 import { supabase } from "./supabase.js";
+import {
+  BUSINESS_PROFILE_FIELDS,
+  normalizeBusinessProfileDetails,
+  removeGeneratedMissingPlaceholders,
+} from "../lib/business-profile.js";
 
 const message = document.querySelector("#profile-message");
 const section = document.querySelector("#facts-section");
 const list = document.querySelector("#facts-list");
 const empty = document.querySelector("#facts-empty");
 const count = document.querySelector("#facts-count");
+const detailsSection = document.querySelector("#business-details-section");
+const detailsForm = document.querySelector("#business-details-form");
+const saveDetailsButton = document.querySelector("#save-business-details");
 let currentUser = null;
 let profile = null;
 let registryByKey = new Map();
@@ -32,6 +40,36 @@ function labelFor(key) {
   const fact = profile?.business_facts?.[key];
   const registryFact = registryByKey.get(key);
   return questionForFact(key, fact, registryFact);
+}
+
+function populateBusinessDetails() {
+  for (const field of BUSINESS_PROFILE_FIELDS) {
+    detailsForm.elements[field].value = profile?.[field] ?? "";
+  }
+  detailsSection.hidden = false;
+}
+
+async function saveBusinessDetails() {
+  saveDetailsButton.disabled = true;
+  try {
+    const details = normalizeBusinessProfileDetails(Object.fromEntries(new FormData(detailsForm)));
+    if (!details.legal_name) throw new Error("יש להזין שם משפטי של העסק.");
+    const changedAt = new Date().toISOString();
+    const { data, error } = await supabase.from("business_profile").upsert({
+      user_id: currentUser.id,
+      ...details,
+      business_facts: profile.business_facts ?? {},
+      updated_at: changedAt,
+    }, { onConflict: "user_id" }).select("*").single();
+    if (error) throw new Error("שמירת פרטי העסק נכשלה.");
+    profile = data;
+    populateBusinessDetails();
+    setMessage("success", "✓", "פרטי העסק נשמרו בנפרד מהיכולות ומנתוני המכרזים.");
+  } catch (error) {
+    setMessage("error", "✕", error.message);
+  } finally {
+    saveDetailsButton.disabled = false;
+  }
 }
 
 function createInput(key, fact) {
@@ -145,11 +183,28 @@ async function load() {
   registryByKey = new Map((registry.facts ?? []).map((item) => [item.business_fact_key, item]));
   profile = profileResult.data ?? { user_id: currentUser.id, business_facts: {} };
   profile.business_facts ??= {};
-  message.hidden = true;
+  const migration = removeGeneratedMissingPlaceholders(profile.business_facts);
+  if (migration.removedKeys.length) {
+    const changedAt = new Date().toISOString();
+    const { error } = await supabase.from("business_profile").upsert({
+      user_id: currentUser.id,
+      business_facts: migration.facts,
+      updated_at: changedAt,
+    }, { onConflict: "user_id" });
+    if (error) throw new Error("זוהו נתוני מכרז ישנים בפרופיל, אך הניקוי הבטוח שלהם נכשל.");
+    profile.business_facts = migration.facts;
+  }
+  populateBusinessDetails();
   render();
+  if (migration.removedKeys.length) {
+    setMessage("success", "✓", `${migration.removedKeys.length} placeholders ריקים שנוצרו מדרישות מכרז הוסרו מפרופיל העסק. לא נמחקו ערכים שהוזנו על ידי משתמש.`);
+  } else {
+    message.hidden = true;
+  }
 }
 
 document.querySelector("#logout-button").addEventListener("click", async () => { await supabase.auth.signOut(); location.replace("index.html"); });
+detailsForm.addEventListener("submit", async (event) => { event.preventDefault(); await saveBusinessDetails(); });
 
 const loadDemoButton = document.querySelector("#load-demo-button");
 if (loadDemoButton) {
