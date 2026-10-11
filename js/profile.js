@@ -127,4 +127,32 @@ async function load() {
 }
 
 document.querySelector("#logout-button").addEventListener("click", async () => { await supabase.auth.signOut(); location.replace("index.html"); });
+
+const loadDemoButton = document.querySelector("#load-demo-button");
+if (loadDemoButton) {
+  loadDemoButton.addEventListener("click", async () => {
+    loadDemoButton.disabled = true;
+    try {
+      setMessage("working", "…", "טוען את נתוני הבדיקה…");
+      const demoResponse = await fetch("data/demo-business-facts.json");
+      if (!demoResponse.ok) throw new Error("טעינת קובץ נתוני הבדיקה נכשלה.");
+      const demoFacts = await demoResponse.json();
+      const updatedFacts = { ...(profile.business_facts ?? {}), ...demoFacts };
+      const { error } = await supabase.from("business_profile").upsert({
+        user_id: currentUser.id,
+        business_facts: updatedFacts,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" });
+      if (error) throw new Error("שמירת הנתונים נכשלה.");
+      profile.business_facts = updatedFacts;
+      render();
+      setMessage("success", "✓", "כל 31 עובדות העסק נטענו בהצלחה בנתוני בדיקה ונשמרו בפרופיל.");
+    } catch (error) {
+      setMessage("error", "✕", error.message);
+    } finally {
+      loadDemoButton.disabled = false;
+    }
+  });
+}
+
 try { await load(); } catch (error) { setMessage("error", "✕", error.message); }

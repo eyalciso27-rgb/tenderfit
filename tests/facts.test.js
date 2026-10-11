@@ -73,3 +73,23 @@ test("marks conflicting aliases for review instead of guessing a value", () => {
 
   assert.equal(output.facts.employee_count.status, "needs_review");
 });
+
+test("demo-business-facts.json covers all 31 canonical facts with valid known data", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const registry = JSON.parse(await readFile("data/business-facts-registry.json", "utf8"));
+  const demoFacts = JSON.parse(await readFile("data/demo-business-facts.json", "utf8"));
+
+  assert.equal(registry.facts.length, 31);
+  assert.equal(Object.keys(demoFacts).length, 31);
+
+  for (const fact of registry.facts) {
+    const key = fact.business_fact_key;
+    assert.ok(demoFacts[key], `Missing demo fact for ${key}`);
+    const demo = demoFacts[key];
+    assert.equal(demo.business_fact_type, fact.business_fact_type);
+    assert.equal(demo.unit, fact.unit);
+    assert.equal(demo.status, "known");
+    assert.notEqual(demo.value, null);
+    assert.notEqual(demo.value, undefined);
+  }
+});
