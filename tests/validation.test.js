@@ -24,6 +24,30 @@ test("similar facts with different quotes are retained and flagged", () => {
   assert.equal(result.requirements.every((item) => item.requires_manual_review), true);
 });
 
+test("dedup redirects child and condition-group references from a removed duplicate", () => {
+  const keptParent = {
+    ...requirement("parent-kept", "נדרשים רישיון וביטוח"),
+    parent_requirement_id: null,
+    condition_group_id: null,
+  };
+  const removedParent = {
+    ...requirement("parent-removed", "נדרשים רישיון וביטוח"),
+    parent_requirement_id: null,
+    condition_group_id: null,
+  };
+  const child = {
+    ...requirement("child", "יש לצרף ביטוח תקף"),
+    parent_requirement_id: "parent-removed",
+    condition_group_id: "parent-removed",
+  };
+
+  const result = conservativeDedup([keptParent, removedParent, child]);
+  const rewrittenChild = result.requirements.find((item) => item.requirement_id === "child");
+  assert.equal(rewrittenChild.parent_requirement_id, "parent-kept");
+  assert.equal(rewrittenChild.condition_group_id, "parent-kept");
+  assert.equal(result.log.some((entry) => entry.action === "redirected_reference"), true);
+});
+
 test("OpenAPI nullable enums are converted for Ajv without widening non-null values", () => {
   const prepared = prepareAjvSchema({ type: "string", nullable: true, enum: ["each", "all"] });
   assert.deepEqual(prepared.enum, ["each", "all", null]);
