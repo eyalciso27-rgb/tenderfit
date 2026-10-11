@@ -934,8 +934,7 @@ blockquote {
 }
 
 .fit-summary,
-.fit-next-step,
-.fit-important-note {
+.fit-next-step {
   padding: 0.8rem;
   border-radius: 8px;
   background: var(--color-info-background);
@@ -965,11 +964,6 @@ blockquote {
 .fit-section li span {
   display: block;
   color: var(--color-text-secondary);
-}
-
-.fit-important-note {
-  color: var(--color-review-text);
-  background: var(--color-review-background);
 }
 
 .overview-heading,

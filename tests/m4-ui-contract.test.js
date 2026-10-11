@@ -14,7 +14,7 @@ test("M4 page exposes neutral Go and No-Go controls and an update timestamp", ()
 
 test("M4 page exposes Fit Analysis and AI error reporting without replacing code results", () => {
   assert.match(html, /id="fit-analysis-card"/);
-  assert.match(html, /ההסבר אינו משנה את תוצאות הבדיקה האוטומטית/);
+  assert.match(html, /התוצאה מסבירה את בדיקת ההתאמה האוטומטית בלבד/);
   assert.match(html, /id="error-report-dialog"/);
   assert.match(script, /ai_error_reports/);
   assert.match(script, /תוצאות הבדיקה האוטומטית נשמרו/);

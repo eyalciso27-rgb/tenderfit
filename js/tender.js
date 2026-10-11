@@ -789,10 +789,6 @@ function renderFitAnalysis() {
       section.append(heading, list);
       contentElement.append(section);
     }
-    const note = document.createElement("p");
-    note.className = "fit-important-note";
-    note.textContent = "התוצאה מסבירה את בדיקת ההתאמה האוטומטית בלבד. היא אינה ייעוץ משפטי ואינה החלטת Go/No-Go.";
-    contentElement.append(note);
     return;
   }
 
