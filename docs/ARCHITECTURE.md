@@ -1,7 +1,7 @@
 # ARCHITECTURE — TenderFit
 
-**גרסה:** v1.3 · 9.10.2026 · Background ב-Gemini, Pro לכל הקריאות, מפתחות Supabase חדשים, Spend Cap
-**נגזר מ:** `PRD.md` (v1.3), `tech-stack.md` (v2.1), `product-10-definitions.md` (v3.5), `MVP.md` (v1.2), `course-stack.md`, המפרט הטכני V3.5, `TenderFit_Business_Facts_Registry`
+**גרסה:** v1.5 · 11.10.2026 · הפרדת פרטי עסק/יכולות/מכרז וביטול שמירת placeholders אוטומטית
+**נגזר מ:** `PRD.md` (v1.8), `tech-stack.md` (v2.2), `product-10-definitions.md` (v3.8), `MVP.md` (v1.7), `course-stack.md`, המפרט הטכני V3.5, `TenderFit_Business_Facts_Registry`
 **כלל:** כל החלטה טכנית כאן כפופה ל-`course-stack.md` ול-`tech-stack.md`.
 
 > **AI extracts and normalizes; Code compares; Human decides.**
@@ -53,7 +53,7 @@
 ├── upload.html             מכרז חדש + סטטוס עיבוד
 ├── tender.html             ניתוח והתאמה (?id=)
 ├── checklist.html          Checklist (?id=)
-├── profile.html            פרופיל העסק
+├── profile.html            פרטי העסק
 ├── css/
 │   └── styles.css
 ├── js/
@@ -124,7 +124,7 @@
 | `region_outputs` | jsonb | פלט גולמי של ה-Extractor לכל אזור, לפני Merge |
 | `requirements` | jsonb | הדרישות אחרי `validate`, במבנה סעיף 11 |
 | `dedup_log` | jsonb | מזהים מקוריים ופעולות איחוד |
-| `results` | jsonb | תוצאה לכל דרישה + מונים |
+| `results` | jsonb | תוצאת מערכת לכל דרישה + מונים + `responses` נפרד למענה הלקוח + שדות `stale` |
 | `fit_analysis` | jsonb, null | פלט F18 |
 | `checklist` | jsonb, null | פריטים, ראו 7 |
 | `ai_usage` | jsonb | יומן קריאות למודל, ראו 9 |
@@ -153,9 +153,29 @@
   "status": "known|missing|needs_review",
   "aliases": [],
   "source": "user",
+  "scope": "string|null",
+  "period": "string|null",
+  "valid_until": "date|null",
+  "verification_status": "string|null",
   "updated_at": "timestamp|null"
 }
 ```
+
+מבנה מענה לקוח בתוך `results.responses[requirement_id]`:
+
+```json
+{
+  "response_status": "met|gap|partial|conditional|review|not_applicable",
+  "response_basis": "business_fact|user_statement|document|future_commitment|null",
+  "note": "string|null",
+  "reminder_on": "YYYY-MM-DD|null",
+  "reminder_sent_at": "timestamp|null",
+  "updated_at": "timestamp",
+  "source": "user"
+}
+```
+
+`results.by_requirement_id`, המונים והסיכום הם תוצרי המערכת בלבד. `responses` אינו override שלהם.
 
 ### 3.3 `ai_error_reports`
 
@@ -174,7 +194,7 @@
 
 - **בכל שלוש הטבלאות:** ‏`select`, ‏`insert` ו-`update` מותרים רק כש-`user_id = auth.uid()`. אין `delete` ב-MVP.
 - **Bucket:** ‏`tender-pdfs`, פרטי. נתיב הקובץ הוא `{user_id}/{tender_id}.pdf`. מדיניות: המשתמש קורא וכותב רק תחת התיקייה ששמה `auth.uid()`.
-- **n8n:** קורא מ-`tenders` עם Secret key (`sb_secret_...`) ששמור רק ב-Credentials של n8n. המפתח עוקף RLS, ולכן ה-Workflow מבצע קריאה בלבד.
+- **n8n:** משתמש ב-Secret key (`sb_secret_...`) ששמור רק ב-Credentials של n8n. הוא קורא `tenders`, ולאחר מייל יעד בדיקה מעדכן רק `reminder_sent_at` בתוך `results.responses` ואת `updated_at`.
 - **נתוני דוגמה:** עסק בדיוני, ולפחות 5 שורות ב-`tenders`, כדי שכל המסכים יוצגו מלאים.
 
 ---
@@ -306,8 +326,10 @@ client.interactions.get(id)   ← בכל בדיקה חוזרת
 ### 6.1 זיהוי Business Facts
 
 1. לכל דרישה עם `requirement_target = business_fact`: נרמול `business_fact_key` וחיפוש ב-aliases של הפרופיל ושל ה-Registry.
-2. אם יש Fact קנוני, משתמשים בו. אם אין, נוצר Fact חדש בפרופיל עם `status=missing`.
+2. אם יש Fact קנוני בפרופיל, משתמשים בו. אם אין, נוצר אובייקט זמני עם `status=missing` לצורך התוצאה בלבד. הוא אינו נשמר ב-`business_profile`.
 3. ‏`business_fact_type` מוגבל לששת הטיפוסים. טיפוס אחר → "דורש בדיקה – סוג המידע אינו נתמך אוטומטית ב-MVP".
+
+**חוק כתיבה:** `step=compare` אינו כותב Business Facts חדשים. השלמה ועריכה של Business Facts מתבצעות אך ורק מתוך מסך המכרז (`tender.html`), באזור "נתונים להשוואה למכרז הזה" או מתוך כרטיס הדרישה. מסך `profile.html` מנהל אך ורק את פרטי העסק הבסיסיים (שם, ח.פ./עוסק, איש קשר, טלפון, אימייל). לצורך תאימות, placeholders ישנים וריקים שבהם `status=missing`, ‏`value=null` ואין `source` מוסרים במיגרציה בטוחה; כל ערך משתמש נשמר במלואו ואינו נמחק.
 
 ### 6.2 תוצאה לדרישה אטומית
 
@@ -344,7 +366,11 @@ Parent לא מבצע השוואה עצמאית ולא נספר במונים. ה�
 
 **סיכום מצב (בקוד):** משפט שנבנה מתבנית קבועה מתוך המונים, למשל: "{פערים קריטיים} פערים בתנאי סף קריטיים, {חסר} נתונים חסרים בפרופיל, ו-{בדיקה} דרישות שדורשות בדיקה שלך." חלקים עם 0 מושמטים. מתחתיו: "מחושב בקוד מתוך התוצאות. אינו המלצה." נשמר ב-`results.summary` ומחושב מחדש בכל `compare`.
 
-### 6.5 ביצועים
+### 6.5 מענה לקוח אינו תוצאת Comparison
+
+המענה זמין לכל דרישה אטומית, גם כשהיעד אינו `business_fact`. הוא נשמר דרך `lib/tender-response.js`. פעולת `compare` משמרת את `results.responses` הקיים אך לעולם אינה קוראת ממנו לצורך תוצאה, צבירה, אחוז או Fit Analysis. המבנה הישן `manual_reviews` נקרא רק לצורך מיגרציה חד-פעמית ואינו משמש override.
+
+### 6.6 ביצועים
 
 Comparison וצבירה מסתיימים תוך פחות מ-2 שניות. הזמן הזה לא כולל את F18, שהוא קריאת מודל שרצה אחריהם.
 
@@ -379,6 +405,9 @@ Comparison וצבירה מסתיימים תוך פחות מ-2 שניות. הזמ
 | העלאת PDF | בדיקת סוג וגודל (PDF, עד 50MB), חישוב SHA-256 ב-Web Crypto, העלאה ל-`tender-pdfs`, יצירת שורה ב-`tenders` |
 | פרופיל ו-Business Facts | קריאה וכתיבה ל-`business_profile` |
 | "השלם נתון" | כתיבת `value` ו-`status=known` ל-Fact, ואז "בדוק שוב" (`step=compare`) |
+| שינוי Fact קיים | שמירה בפרופיל וסימון `results.stale=true` בכל מכרז שהשתמש במפתח; התוצאה נשארת מוצגת כאחרונה שחושבה עד "בדוק שוב" |
+| "מענה הלקוח" | כתיבה ל-`tenders.results.responses[requirement_id]` בלבד. אין קריאת `compare`, אין שינוי Fact ואין שינוי מונים |
+| "דורש בדיקה" + תאריך יעד | שמירת `reminder_on`; התאריך רשות. שינוי תאריך מאפס `reminder_sent_at` |
 | Go / No-Go | עדכון `decision` ו-`decision_updated_at`. ב-Go הראשון נוצר Checklist (7) |
 | Checklist | עדכון פריטים |
 | דיווח על טעות AI | `insert` ל-`ai_error_reports` |
@@ -437,14 +466,19 @@ Comparison וצבירה מסתיימים תוך פחות מ-2 שניות. הזמ
 ## 12. אוטומציה: n8n
 
 ```text
-Schedule (פעם ביום) → Supabase (Secret key, קריאה בלבד):
-  tenders where decision='go'
-    and submission_deadline between now() and now()+7 days
-→ אם יש תוצאות: Gmail → כתובת בדיקה (מייל מסכם)
+Schedule (פעם ביום, Asia/Jerusalem)
+  → Supabase: כל tenders
+  → Code:
+      א. decision='go' ומועד הגשה בתוך 7 ימים
+      ב. response_status='review', תאריך reminder_on הגיע, ו-reminder_sent_at ריק
+  → Gmail: מייל מסכם לכתובת בדיקה
+  → אם נשלחה תזכורת לסעיף: Supabase update של reminder_sent_at
 ```
 
 - רץ ב-Docker על שרת Oracle. השרת צריך להיות פעיל.
-- לא משנה נתונים. לא מחליף את חישוב הדחיפות במסך.
+- ללא `reminder_on` אין מייל על הסעיף. חותמת השליחה מונעת שליחה חוזרת לאותו יעד.
+- קובץ הייבוא הוא `n8n/f32-reminders.workflow.json`; לפני הפעלה מגדירים Credentials, כתובת בדיקה וקישור לאפליקציה.
+- האוטומציה לא משנה את תוצאת המערכת ולא מחליפה את חישוב הדחיפות במסך.
 
 ---
 
@@ -465,7 +499,8 @@ Schedule (פעם ביום) → Supabase (Secret key, קריאה בלבד):
 
 | סוג | מה נבדק | איך |
 |---|---|---|
-| יחידה | Comparison Engine, צבירת Parent/Child, יחידות, תאריכים, מונים | `node:test`, על מקרים מהקורפוס |
+| יחידה | Comparison Engine, צבירת Parent/Child, יחידות, תאריכים, מונים והקשר Fact | `node:test`, על מקרים מהקורפוס |
+| יחידה | מענה לקוח נפרד, מיגרציה מ-`manual_reviews`, Staleness ותזכורות | `node:test`; וידוא שמענה לקוח אינו משנה תוצאת מערכת |
 | יחידה | Merge/Dedup | אזורים חופפים, דרישות זהות, דרישות דומות אבל שונות, Parent/Child |
 | יחידה | Checklist | יצירה, איחוד, שינוי החלטה |
 | תאימות | תבנית V3.6 מול V3.5 | הפרמטרים של ה-Benchmark מפיקים Prompt זהה |

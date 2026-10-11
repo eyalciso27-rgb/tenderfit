@@ -162,7 +162,52 @@ export const HEBREW_FACT_QUESTIONS = Object.freeze({
   annual_revenue: "מהו מחזור ההכנסות השנתי של העסק (בש״ח)?",
   employee_count: "כמה עובדים מועסקים בעסק?",
   contractor_classification: "מהו הסיווג הקבלני הרשום של העסק?",
+  performance_guarantee_amount: "מהו סכום ערבות הביצוע הנדרש (בש״ח)?",
+  performance_guarantee_validity: "מהו תוקף ערבות הביצוע?",
+  performance_guarantee: "האם נדרשת ערבות ביצוע?",
+  bid_bond_amount: "מהו סכום ערבות ההצעה הנדרש (בש״ח)?",
+  bid_guarantee_amount: "מהו סכום ערבות ההצעה הנדרש (בש״ח)?",
+  bid_bond: "האם נדרשת ערבות הצעה?",
+  bid_guarantee: "האם נדרשת ערבות הצעה?",
+  bank_guarantee_amount: "מהו סכום הערבות הבנקאית הנדרש (בש״ח)?",
+  bank_guarantee_validity: "מהו תוקף הערבות הבנקאית?",
+  bank_guarantee: "האם נדרשת ערבות בנקאית?",
+  guarantee_amount: "מהו סכום הערבות הנדרש (בש״ח)?",
+  guarantee_validity: "מהו תוקף הערבות הנדרש?",
+  financial_turnover: "מהו מחזור ההכנסות השנתי של העסק (בש״ח)?",
+  annual_turnover: "מהו מחזור ההכנסות השנתי של העסק (בש״ח)?",
+  experience_years: "כמה שנות ניסיון נדרשות?",
+  professional_liability_insurance: "האם קיים ביטוח אחריות מקצועית?",
+  third_party_insurance: "האם קיים ביטוח צד ג׳?",
+  employers_liability_insurance: "האם קיים ביטוח חבות מעבידים?",
 });
+
+export function translateFactKey(key) {
+  if (!key || typeof key !== "string") return null;
+  const normalized = key.toLowerCase();
+  if (normalized.includes("performance") && normalized.includes("guarantee") && normalized.includes("amount")) {
+    return "סכום ערבות ביצוע";
+  }
+  if ((normalized.includes("bid_bond") || normalized.includes("bid_guarantee")) && normalized.includes("amount")) {
+    return "סכום ערבות הצעה";
+  }
+  if (normalized.includes("bank_guarantee") && normalized.includes("amount")) {
+    return "סכום ערבות בנקאית";
+  }
+  if (normalized.includes("guarantee") && normalized.includes("amount")) {
+    return "סכום ערבות";
+  }
+  if (normalized.includes("guarantee") && normalized.includes("validity")) {
+    return "תוקף ערבות";
+  }
+  if (normalized.includes("turnover") || normalized.includes("revenue")) {
+    return "מחזור הכנסות שנתי";
+  }
+  if (normalized.includes("insurance")) {
+    return "ביטוח מתאים";
+  }
+  return null;
+}
 
 export function questionForFact(key, fact = null, registryFact = null) {
   if (fact?.question_he) return fact.question_he;
@@ -172,6 +217,252 @@ export function questionForFact(key, fact = null, registryFact = null) {
   if (registryFact?.title_he) return registryFact.title_he;
   if (fact?.description_he) return fact.description_he;
   if (registryFact?.description_he) return registryFact.description_he;
+
+  if (typeof key === "string" && key) {
+    const normalizedKey = key.toLowerCase();
+    if (normalizedKey.includes("performance") && normalizedKey.includes("guarantee") && normalizedKey.includes("amount")) {
+      return "מהו סכום ערבות הביצוע הנדרש (בש״ח)?";
+    }
+    if ((normalizedKey.includes("bid_bond") || normalizedKey.includes("bid_guarantee")) && normalizedKey.includes("amount")) {
+      return "מהו סכום ערבות ההצעה הנדרש (בש״ח)?";
+    }
+    if (normalizedKey.includes("bank_guarantee") && normalizedKey.includes("amount")) {
+      return "מהו סכום הערבות הבנקאית הנדרש (בש״ח)?";
+    }
+    if (normalizedKey.includes("guarantee") && normalizedKey.includes("amount")) {
+      return "מהו סכום הערבות הנדרש (בש״ח)?";
+    }
+    if (normalizedKey.includes("guarantee") && normalizedKey.includes("validity")) {
+      return "מהו תוקף הערבות הנדרש?";
+    }
+    if (normalizedKey.includes("turnover") || normalizedKey.includes("revenue")) {
+      return "מהו מחזור ההכנסות השנתי (בש״ח)?";
+    }
+    if (normalizedKey.includes("insurance")) {
+      return "האם קיים ביטוח כנדרש במכרז?";
+    }
+  }
+
   return "נתון עסק נדרש";
 }
+
+export const EXPLANATION_TRANSLATIONS = Object.freeze({
+  "the requirement is not automatically checked against the business profile.": "הדרישה אינה נבדקת אוטומטית מול פרופיל העסק.",
+  "the requirement was flagged for manual review and is not automatically approved.": "הדרישה סומנה לבדיקה ידנית ואינה מאושרת אוטומטית.",
+  "סוג המידע אינו נתמך אוטומטית ב-mvp.": "סוג המידע אינו נתמך אוטומטית ב-MVP.",
+  "the data type is not supported automatically in mvp.": "סוג המידע אינו נתמך אוטומטית ב-MVP.",
+  "data type is not supported automatically in mvp.": "סוג המידע אינו נתמך אוטומטית ב-MVP.",
+  "the corresponding fact is missing from the business profile.": "הנתון המקביל חסר בפרופיל העסק.",
+  "missing corresponding data in business profile.": "הנתון המקביל חסר בפרופיל העסק.",
+  "the corresponding data is missing from the business profile.": "הנתון המקביל חסר בפרופיל העסק.",
+  "the business fact itself requires review.": "נתון העסק עצמו דורש בדיקה.",
+  "business fact itself requires review.": "נתון העסק עצמו דורש בדיקה.",
+  "business fact type differs from requirement type.": "סוג נתון העסק שונה מסוג הדרישה.",
+  "the business fact type differs from the requirement type.": "סוג נתון העסק שונה מסוג הדרישה.",
+  "business fact period does not explicitly match requirement period.": "תקופת נתון העסק אינה תואמת במפורש לתקופת הדרישה.",
+  "business fact period does not match requirement period.": "תקופת נתון העסק אינה תואמת במפורש לתקופת הדרישה.",
+  "business fact scope does not explicitly match requirement scope.": "היקף נתון העסק אינו תואם במפורש להיקף הדרישה.",
+  "business fact scope does not match requirement scope.": "היקף נתון העסק אינו תואם במפורש להיקף הדרישה.",
+  "business fact unit does not match requirement unit and there is no approved conversion.": "יחידת נתון העסק אינה תואמת ליחידת הדרישה ואין המרה מאושרת.",
+  "business fact unit does not match requirement unit and no conversion exists.": "יחידת נתון העסק אינה תואמת ליחידת הדרישה ואין המרה מאושרת.",
+  "business fact unit does not match requirement unit.": "יחידת נתון העסק אינה תואמת ליחידת הדרישה ואין המרה מאושרת.",
+  "tender submission deadline is unknown, so fact validity cannot be verified.": "מועד ההגשה לא ידוע ולכן אי אפשר לבדוק את תוקף הנתון.",
+  "tender submission deadline is unknown, so validity cannot be verified.": "מועד ההגשה לא ידוע ולכן אי אפשר לבדוק את תוקף הנתון.",
+  "business fact date is invalid.": "תאריך נתון העסק אינו תקין.",
+  "the business fact date is invalid.": "תאריך נתון העסק אינו תקין.",
+  "cannot perform comparison deterministically in code.": "לא ניתן לבצע את ההשוואה באופן חד-משמעי בקוד.",
+  "the comparison cannot be performed deterministically in code.": "לא ניתן לבצע את ההשוואה באופן חד-משמעי בקוד.",
+  "business fact satisfies the condition code-comparable.": "נתון העסק עומד בתנאי שניתן להשוואה בקוד.",
+  "business fact meets code-comparable condition.": "נתון העסק עומד בתנאי שניתן להשוואה בקוד.",
+  "business fact complies with requirement.": "נתון העסק עומד בתנאי שניתן להשוואה בקוד.",
+  "business fact does not satisfy the condition code-comparable.": "נתון העסק אינו עומד בתנאי שניתן להשוואה בקוד.",
+  "business fact does not meet code-comparable condition.": "נתון העסק אינו עומד בתנאי שניתן להשוואה בקוד.",
+  "circular parent/child structure requires review.": "מבנה Parent/Child מעגלי דורש בדיקה.",
+  "no comparison result.": "אין תוצאת השוואה.",
+  "parent result was derived from child requirements and is not counted again in totals.": "תוצאת Parent נגזרה מדרישות המשנה ואינה נספרת שוב במונים.",
+  "parent result derived from child requirements.": "תוצאת Parent נגזרה מדרישות המשנה ואינה נספרת שוב במונים.",
+  "comparison has not been completed.": "ההשוואה טרם הושלמה.",
+  "comparison pending.": "ההשוואה טרם הושלמה.",
+  "region boundaries require manual review.": "גבולות האזור דורשים בדיקה ידנית.",
+});
+
+export function translateToHebrew(text) {
+  if (!text || typeof text !== "string") return text ?? "";
+  const trimmed = text.trim();
+  if (!trimmed) return "";
+
+  // If already Hebrew and doesn't match known English requirement phrases
+  if (/[\u0590-\u05ff]/u.test(trimmed) && !/\b(?:guarantee|must be|bid bond|performance)\b/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  const normalized = trimmed.toLowerCase().replace(/\s+/g, " ");
+  if (EXPLANATION_TRANSLATIONS[normalized]) {
+    return EXPLANATION_TRANSLATIONS[normalized];
+  }
+
+  // Regex pattern for guarantee amounts: "The performance guarantee amount must be exactly 300,000 NIS."
+  const guaranteeAmountRegex = /^the\s+(performance\s+guarantee|bid\s+bond|bid\s+guarantee|bank\s+guarantee|guarantee)\s+amount\s+must\s+be\s+(exactly|at\s+least|at\s+most)?\s*([\d,]+(?:\.\d+)?)\s*(?:nis|ils|ש"?ח)?\.?$/i;
+  const guaranteeAmountMatch = trimmed.match(guaranteeAmountRegex);
+  if (guaranteeAmountMatch) {
+    const [, kindRaw, opRaw, amount] = guaranteeAmountMatch;
+    const kindMap = {
+      "performance guarantee": "סכום ערבות הביצוע",
+      "bid bond": "סכום ערבות ההצעה",
+      "bid guarantee": "סכום ערבות ההצעה",
+      "bank guarantee": "סכום הערבות הבנקאית",
+      "guarantee": "סכום הערבות",
+    };
+    const opMap = {
+      "exactly": "בדיוק",
+      "at least": "לפחות",
+      "at most": "לכל היותר",
+    };
+    const kind = kindMap[kindRaw.toLowerCase()] || "סכום הערבות";
+    const op = opRaw ? ` ${opMap[opRaw.toLowerCase()] || ""}` : "";
+    return `${kind} חייב להיות${op} ${amount} ש״ח.`;
+  }
+
+  // Regex pattern for guarantee validity
+  const guaranteeValidityRegex = /^the\s+(?:performance\s+guarantee|bid\s+bond|bank\s+guarantee|guarantee)?\s*validity\s+must\s+be\s+(at\s+least|at\s+most|exactly)?\s*(\d+)\s*(days|months|years)?\.?$/i;
+  const validityMatch = trimmed.match(guaranteeValidityRegex);
+  if (validityMatch) {
+    const [, opRaw, count, unitRaw] = validityMatch;
+    const opMap = { "at least": "לפחות", "at most": "לכל היותר", "exactly": "בדיוק" };
+    const unitMap = { "days": "ימים", "months": "חודשים", "years": "שנים" };
+    const op = opRaw ? `${opMap[opRaw.toLowerCase()] || ""} ` : "";
+    const unit = unitRaw ? ` ${unitMap[unitRaw.toLowerCase()] || unitRaw}` : "";
+    return `תוקף הערבות חייב להיות ${op}${count}${unit}.`;
+  }
+
+  if (/^the bidder must be a registered entity in israel\.?$/i.test(trimmed)) {
+    return "המציע חייב להיות תאגיד רשום כדין בישראל.";
+  }
+  if (/^the bidder must hold valid legal licenses\.?$/i.test(trimmed)) {
+    return "המציע חייב להחזיק ברישיונות והיתרים תקפים כחוק.";
+  }
+  if (/^the business must be able to serve the required number of diners\.?$/i.test(trimmed)) {
+    return "על העסק להיות מסוגל לשרת את מספר הסועדים הנדרש.";
+  }
+
+  // General "The ... must be ..." translation
+  const generalMustBeMatch = trimmed.match(/^the\s+(.+?)\s+must\s+be\s+(.+?)\.?$/i);
+  if (generalMustBeMatch) {
+    const [, subject, predicate] = generalMustBeMatch;
+    const heSubject = subject
+      .replace(/performance guarantee amount/gi, "סכום ערבות הביצוע")
+      .replace(/bid bond amount/gi, "סכום ערבות ההצעה")
+      .replace(/bid guarantee amount/gi, "סכום ערבות ההצעה")
+      .replace(/bank guarantee amount/gi, "סכום הערבות הבנקאית")
+      .replace(/guarantee amount/gi, "סכום הערבות")
+      .replace(/annual turnover/gi, "מחזור ההכנסות השנתי")
+      .replace(/annual revenue/gi, "מחזור ההכנסות השנתי")
+      .replace(/system/gi, "המערכת")
+      .replace(/bidder/gi, "המציע")
+      .replace(/business/gi, "העסק");
+
+    const hePredicate = predicate
+      .replace(/exactly/gi, "בדיוק")
+      .replace(/at least/gi, "לפחות")
+      .replace(/at most/gi, "לכל היותר")
+      .replace(/\bnis\b/gi, "ש״ח")
+      .replace(/\bils\b/gi, "ש״ח");
+
+    if (heSubject !== subject || hePredicate !== predicate) {
+      return `${heSubject} חייב להיות ${hePredicate}.`.trim();
+    }
+  }
+
+  return trimmed;
+}
+
+export const SCOPE_TRANSLATIONS = Object.freeze({
+  "all sites": "כל האתרים",
+  "all_sites": "כל האתרים",
+  "single site": "אתר בודד",
+  "single_site": "אתר בודד",
+  "nationwide": "פריסה ארצית",
+  "israel": "ישראל",
+  "international": "בינלאומי",
+  "legal_entity": "תאגיד משפטי",
+});
+
+export const PERIOD_TRANSLATIONS = Object.freeze({
+  "past 3 years": "3 השנים האחרונות",
+  "last 3 years": "3 השנים האחרונות",
+  "last 2 years": "שנתיים אחרונות",
+  "last year": "בשנה האחרונה",
+  "past 5 years": "5 השנים האחרונות",
+  "annual": "שנתי",
+  "monthly": "חודשי",
+});
+
+export const SOURCE_TYPE_TRANSLATIONS = Object.freeze({
+  table: "טבלה",
+  text: "טקסט",
+  header: "כותרת",
+  footnote: "הערת שוליים",
+});
+
+export const REQUIREMENT_TYPE_TRANSLATIONS = Object.freeze({
+  threshold: "תנאי סף",
+  technical: "טכני",
+  financial: "פיננסי",
+  legal: "משפטי",
+  administrative: "מנהלי",
+  quality: "איכות",
+  security: "אבטחת מידע",
+  sla: "רמת שירות (SLA)",
+  guarantee: "ערבות",
+  insurance: "ביטוח",
+  experience: "ניסיון",
+  validity: "תוקף",
+  mandatory: "חובה",
+  evaluation: "ניקוד",
+});
+
+export const CATEGORY_TRANSLATIONS = Object.freeze({
+  deadlines: "לוחות זמנים",
+  eligibility: "תנאי סף",
+  submission: "הגשת הצעה",
+  guarantee: "ערבויות",
+  evaluation: "כללי ניקוד",
+  technical_mandatory: "דרישות טכניות חובה",
+  quality: "איכות",
+  implementation: "יישום ותפעול",
+  sla: "רמת שירות (SLA)",
+  cybersecurity: "אבטחת מידע וסייבר",
+  insurance: "ביטוח",
+  financial: "פיננסי ותמחור",
+  contract: "תנאי חוזה",
+  forms: "טפסים והצהרות",
+  post_award: "התחייבויות לאחר זכייה",
+  other: "כללי",
+});
+
+export function translateScope(scope) {
+  if (!scope) return scope;
+  return SCOPE_TRANSLATIONS[String(scope).trim().toLowerCase()] ?? scope;
+}
+
+export function translatePeriod(period) {
+  if (!period) return period;
+  return PERIOD_TRANSLATIONS[String(period).trim().toLowerCase()] ?? period;
+}
+
+export function translateSourceType(type) {
+  if (!type) return type;
+  return SOURCE_TYPE_TRANSLATIONS[String(type).trim().toLowerCase()] ?? type;
+}
+
+export function translateRequirementType(type) {
+  if (!type) return type;
+  return REQUIREMENT_TYPE_TRANSLATIONS[String(type).trim().toLowerCase()] ?? type;
+}
+
+export function translateCategory(category) {
+  if (!category) return category;
+  return CATEGORY_TRANSLATIONS[String(category).trim().toLowerCase()] ?? category;
+}
+
 

@@ -7,6 +7,13 @@ import {
   inputKindForFact,
   parseFactInput,
   questionForFact,
+  translateCategory,
+  translateFactKey,
+  translatePeriod,
+  translateRequirementType,
+  translateScope,
+  translateSourceType,
+  translateToHebrew,
 } from "./fact-values.js";
 import { callPipelineStep } from "./pipeline.js";
 import { markAffectedTenderAnalysesStale, markResultsStale } from "./analysis-staleness.js";
@@ -79,9 +86,11 @@ function labelForFact(key, fallbackRequirement = null) {
   if (registryFact?.title_he) return registryFact.title_he;
   if (fact?.description_he) return fact.description_he;
   if (registryFact?.description_he) return registryFact.description_he;
-  if (fallbackRequirement?.requirement_text) return fallbackRequirement.requirement_text;
-  if (fallbackRequirement?.source_quote) return fallbackRequirement.source_quote;
+  if (fallbackRequirement?.requirement_text) return translateToHebrew(fallbackRequirement.requirement_text);
+  if (fallbackRequirement?.source_quote) return translateToHebrew(fallbackRequirement.source_quote);
   if (typeof key === "string" && key) {
+    const translatedKey = translateFactKey(key);
+    if (translatedKey) return translatedKey;
     return key.replace(/_/g, " ");
   }
   return "נתון עסק נדרש";
@@ -436,12 +445,14 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
   if (requirement.source_type === "table" || requirement.table_id) {
     const tableChip = document.createElement("span"); tableChip.className = "chip"; tableChip.textContent = "פריט טבלה"; chips.append(tableChip);
   }
-  for (const value of [requirement.category, requirement.requirement_type]) {
+  const categoryLabel = translateCategory(requirement.category);
+  const typeLabel = translateRequirementType(requirement.requirement_type);
+  for (const value of [categoryLabel, typeLabel]) {
     if (!value) continue;
     const chip = document.createElement("span"); chip.className = "chip"; chip.textContent = value; chips.append(chip);
   }
   if (requirement.requires_manual_review) { const chip = document.createElement("span"); chip.className = "chip chip-review"; chip.textContent = "! דורש בדיקה"; chips.append(chip); }
-  const title = document.createElement("h3"); title.textContent = requirement.requirement_text;
+  const title = document.createElement("h3"); title.textContent = translateToHebrew(requirement.requirement_text);
   header.append(chips, title); article.append(header);
 
   const factKey = result.business_fact_key;
@@ -460,8 +471,8 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
   dataComparison.append(
     informationPanel("מה המכרז דורש", "מקור: מסמך המכרז", "tender-data-panel", [
       ["ערך ותנאי", tenderValue || "לא צוין ערך מובנה"],
-      ["תחולה", requirement.scope],
-      ["תקופה", requirement.period],
+      ["תחולה", translateScope(requirement.scope)],
+      ["תקופה", translatePeriod(requirement.period)],
     ]),
     informationPanel("מה ידוע על העסק", "מקור: פרופיל העסק", "business-data-panel", factKey ? [
       ["שם הנתון", labelForFact(factKey)],
@@ -477,7 +488,7 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
   const comparisonHeading = document.createElement("h4"); comparisonHeading.textContent = "תוצאת המערכת";
   comparison.append(comparisonHeading);
   comparison.append(detailRow("מצב", `${RESULT_STATUS[result.status]?.icon ?? "!"} ${RESULT_STATUS[result.status]?.label ?? "דורש בדיקה"}`));
-  comparison.append(detailRow("הסבר", result.explanation));
+  comparison.append(detailRow("הסבר", translateToHebrew(result.explanation)));
   article.append(comparison);
 
   if (customerResponse) {
@@ -509,7 +520,7 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
   const fields = document.createElement("div"); fields.className = "requirement-fields";
   const fieldValues = [
     ["עמוד", requirement.source_page],
-    ["סעיף", requirement.source_section], ["סוג מקור", requirement.source_type],
+    ["סעיף", requirement.source_section], ["סוג מקור", translateSourceType(requirement.source_type)],
     ["טבלה", requirement.table_id], ["שורה", requirement.row_index],
   ];
   for (const [label, value] of fieldValues) {
@@ -633,7 +644,7 @@ function renderTenderComparisonFacts() {
       const context = document.createElement("p");
       context.className = "fact-context";
       const sectionInfo = requirement.source_section ? `סעיף ${requirement.source_section} · ` : "";
-      context.textContent = `דרישת המכרז: ${sectionInfo}${requirement.requirement_text}`;
+      context.textContent = `דרישת המכרז: ${sectionInfo}${translateToHebrew(requirement.requirement_text)}`;
       card.append(heading, context, factEditor(key, requirement));
     } else {
       card.append(heading, factEditor(key, requirement));

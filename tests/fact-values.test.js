@@ -47,8 +47,63 @@ test("questionForFact resolves natural Hebrew questions", () => {
     "כמה אתרי הסעדה העסק הפעיל בו-זמנית בתקופה הרלוונטית?"
   );
   assert.equal(
-    questionForFact("custom_unknown_key", { title_he: "שאלה מותאמת" }),
-    "שאלה מותאמת"
+    questionForFact("performance_guarantee_amount"),
+    "מהו סכום ערבות הביצוע הנדרש (בש״ח)?"
+  );
+  assert.equal(
+    questionForFact("bank_guarantee_validity"),
+    "מהו תוקף הערבות הבנקאית?"
   );
 });
+
+test("translates English requirement text and explanations to natural Hebrew", async () => {
+  const {
+    translateToHebrew,
+    translateScope,
+    translatePeriod,
+    translateSourceType,
+    translateRequirementType,
+    translateCategory,
+  } = await import("../js/fact-values.js");
+
+  assert.equal(
+    translateToHebrew("The performance guarantee amount must be exactly 300,000 NIS."),
+    "סכום ערבות הביצוע חייב להיות בדיוק 300,000 ש״ח."
+  );
+  assert.equal(
+    translateToHebrew("The performance guarantee amount must be at least 300,000 NIS."),
+    "סכום ערבות הביצוע חייב להיות לפחות 300,000 ש״ח."
+  );
+  assert.equal(
+    translateToHebrew("The bid bond amount must be at least 50,000 ILS."),
+    "סכום ערבות ההצעה חייב להיות לפחות 50,000 ש״ח."
+  );
+  assert.equal(
+    translateToHebrew("The requirement is not automatically checked against the business profile."),
+    "הדרישה אינה נבדקת אוטומטית מול פרופיל העסק."
+  );
+  assert.equal(
+    translateToHebrew("The corresponding fact is missing from the business profile."),
+    "הנתון המקביל חסר בפרופיל העסק."
+  );
+  assert.equal(
+    translateToHebrew("Business fact satisfies the condition code-comparable."),
+    "נתון העסק עומד בתנאי שניתן להשוואה בקוד."
+  );
+  assert.equal(
+    translateToHebrew("Business fact does not satisfy the condition code-comparable."),
+    "נתון העסק אינו עומד בתנאי שניתן להשוואה בקוד."
+  );
+  assert.equal(
+    translateToHebrew("הדרישה נבדקה בהצלחה"),
+    "הדרישה נבדקה בהצלחה"
+  );
+
+  assert.equal(translateScope("all sites"), "כל האתרים");
+  assert.equal(translatePeriod("past 3 years"), "3 השנים האחרונות");
+  assert.equal(translateSourceType("table"), "טבלה");
+  assert.equal(translateRequirementType("threshold"), "תנאי סף");
+  assert.equal(translateCategory("guarantee"), "ערבויות");
+});
+
 
