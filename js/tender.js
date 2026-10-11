@@ -8,11 +8,17 @@ import {
   parseFactInput,
 } from "./fact-values.js";
 import { callPipelineStep } from "./pipeline.js";
+import { markAffectedTenderAnalysesStale, markResultsStale } from "./analysis-staleness.js";
 import { organizeRequirements } from "./requirement-tree.js";
 import { groupTableRequirements, referencesTable } from "./source-tables.js";
 import { supabase } from "./supabase.js";
 import { calculateUrgency, formatDeadline } from "./urgency.js";
 import { tenderDemoNotice } from "./demo-tender.js";
+import {
+  normalizeTenderResponse,
+  normalizeTenderResponses,
+  TENDER_RESPONSE_STATUS,
+} from "../lib/tender-response.js";
 
 const params = new URLSearchParams(location.search);
 const tenderId = params.get("id");
@@ -26,7 +32,23 @@ let currentUser = null;
 let registryByKey = new Map();
 let activeFilter = "all";
 let sourcePdfUrl = null;
-let manualReviewSaving = false;
+let tenderResponseSaving = false;
+
+const RESPONSE_STATUS_META = Object.freeze({
+  met: { icon: "✓", label: "עומד" },
+  gap: { icon: "✕", label: "לא עומד" },
+  partial: { icon: "◐", label: "עמידה חלקית" },
+  conditional: { icon: "◇", label: "עמידה מותנית" },
+  review: { icon: "!", label: "דורש בדיקה" },
+  not_applicable: { icon: "—", label: "לא רלוונטי" },
+});
+
+const RESPONSE_BASIS_META = Object.freeze({
+  business_fact: "עובדה קיימת על העסק",
+  user_statement: "הצהרת הלקוח",
+  document: "מסמך או אסמכתא",
+  future_commitment: "התחייבות עתידית למכרז זה",
+});
 
 function text(id, value) { document.querySelector(`#${id}`).textContent = value ?? "—"; }
 function bidi(value) { const bdi = document.createElement("bdi"); bdi.textContent = value; return bdi; }
@@ -60,13 +82,41 @@ function resultFor(requirement) {
   };
 }
 
+function responseFor(requirement) {
+  return tender.results?.responses?.[requirement.requirement_id] ?? null;
+}
+
 function resultBadge(status) {
   const meta = RESULT_STATUS[status] ?? RESULT_STATUS.review;
   const badge = document.createElement("span");
   badge.className = "result-badge";
   badge.dataset.status = status;
-  badge.textContent = `${meta.icon} ${meta.label}`;
+  badge.textContent = `תוצאת מערכת: ${meta.icon} ${meta.label}`;
   return badge;
+}
+
+function informationPanel(title, sourceLabel, className, rows, emptyCopy = null) {
+  const panel = document.createElement("section");
+  panel.className = `requirement-data-panel ${className}`;
+  const source = document.createElement("p");
+  source.className = "requirement-data-source";
+  source.textContent = sourceLabel;
+  const heading = document.createElement("h4");
+  heading.textContent = title;
+  panel.append(source, heading);
+  let appended = 0;
+  for (const [label, value] of rows) {
+    if (value === null || value === undefined || value === "") continue;
+    panel.append(detailRow(label, value));
+    appended += 1;
+  }
+  if (!appended && emptyCopy) {
+    const empty = document.createElement("p");
+    empty.className = "requirement-data-empty";
+    empty.textContent = emptyCopy;
+    panel.append(empty);
+  }
+  return panel;
 }
 
 function sourcePageLink(requirement, label = "פתח עמוד מקור") {
@@ -111,23 +161,31 @@ async function saveFact(key, fact, input, messageElement, button) {
   button.disabled = true;
   try {
     const value = parseFactInput(fact.business_fact_type, input.value);
+    const changedAt = new Date().toISOString();
     const updatedFact = {
       ...fact,
       value,
       status: value === null ? "missing" : "known",
       source: "user",
-      updated_at: new Date().toISOString(),
+      updated_at: changedAt,
     };
     const updatedFacts = { ...profile.business_facts, [key]: updatedFact };
     const { error } = await supabase.from("business_profile").upsert({
       user_id: currentUser.id,
       business_facts: updatedFacts,
-      updated_at: new Date().toISOString(),
+      updated_at: changedAt,
     }, { onConflict: "user_id" });
     if (error) throw new Error("שמירת הנתון נכשלה.");
     profile.business_facts = updatedFacts;
+    tender.results = markResultsStale(tender.results, [key], changedAt);
+    let staleWarning = "";
+    try {
+      await markAffectedTenderAnalysesStale(supabase, currentUser.id, [key], changedAt);
+    } catch (staleError) {
+      staleWarning = ` ${staleError.message}`;
+    }
     messageElement.dataset.state = "success";
-    messageElement.textContent = "✓ נשמר. לחצו \"בדוק שוב\" לעדכון ההתאמה.";
+    messageElement.textContent = `✓ נשמר. לחצו "בדוק שוב" לעדכון ההתאמה.${staleWarning}`;
     renderAll();
     setCompareMessage("success", "✓", "הנתון נשמר בפרופיל. לחצו \"בדוק שוב\" כדי לחשב את התוצאות מחדש.");
   } catch (error) {
@@ -147,6 +205,10 @@ function factEditor(key, fallbackRequirement = null) {
     status: "missing",
     aliases: [],
     source: null,
+    scope: fallbackRequirement?.scope ?? null,
+    period: fallbackRequirement?.period ?? null,
+    valid_until: null,
+    verification_status: null,
     updated_at: null,
   };
   const form = document.createElement("form"); form.className = "inline-fact-form";
@@ -159,101 +221,165 @@ function factEditor(key, fallbackRequirement = null) {
   return form;
 }
 
-async function saveManualReview(requirementId, decision, note, form) {
-  if (manualReviewSaving) return;
-  manualReviewSaving = true;
-  const controls = [...form.querySelectorAll("button, textarea")];
-  const feedback = form.querySelector(".manual-review-feedback");
+async function saveTenderResponse(requirementId, form, clear = false) {
+  if (tenderResponseSaving) return;
+  tenderResponseSaving = true;
+  const controls = [...form.querySelectorAll("button, input, select, textarea")];
+  const feedback = form.querySelector(".tender-response-feedback");
   for (const control of controls) control.disabled = true;
   feedback.dataset.state = "working";
-  feedback.textContent = "שומר ומחשב מחדש…";
+  feedback.textContent = "שומר את מענה הלקוח…";
 
   try {
-    const manualReviews = { ...(tender.results?.manual_reviews ?? {}) };
-    if (decision === null) {
-      delete manualReviews[requirementId];
+    const responses = { ...(tender.results?.responses ?? {}) };
+    if (clear) {
+      delete responses[requirementId];
     } else {
-      manualReviews[requirementId] = {
-        decision,
-        note: note.trim().slice(0, 500),
-        reviewed_at: new Date().toISOString(),
+      const status = form.querySelector("[name='response_status']").value;
+      if (!status) throw new Error("יש לבחור מענה לדרישה.");
+      const previous = responses[requirementId] ?? null;
+      const reminderOn = status === TENDER_RESPONSE_STATUS.REVIEW
+        ? form.querySelector("[name='reminder_on']").value || null
+        : null;
+      const normalized = normalizeTenderResponse({
+        response_status: status,
+        response_basis: form.querySelector("[name='response_basis']").value || null,
+        note: form.querySelector("[name='response_note']").value,
+        reminder_on: reminderOn,
+        reminder_sent_at: previous?.reminder_on === reminderOn ? previous?.reminder_sent_at : null,
+        updated_at: new Date().toISOString(),
         source: "user",
-      };
+      });
+      if (!normalized) throw new Error("המענה שנבחר אינו תקין.");
+      responses[requirementId] = normalized;
     }
-    const nextResults = { ...(tender.results ?? {}), manual_reviews: manualReviews };
+    const { manual_reviews: legacyManualReviews, ...automaticResults } = tender.results ?? {};
+    const nextResults = { ...automaticResults, responses };
     const { data, error } = await supabase
       .from("tenders")
       .update({ results: nextResults, updated_at: new Date().toISOString() })
       .eq("id", tender.id)
       .select("results")
       .single();
-    if (error) throw new Error("שמירת ההחלטה נכשלה.");
+    if (error) throw new Error("שמירת מענה הלקוח נכשלה.");
     tender.results = data.results;
-    const successCopy = decision === null
-      ? "האישור הידני בוטל והתוצאה חזרה ל־\"דורש בדיקה\". לא הופעלה קריאת AI."
-      : "ההחלטה הידנית נשמרה והמונים עודכנו. לא הופעלה קריאת AI.";
-    await compare(successCopy);
+    renderAll();
+    setCompareMessage(
+      "success",
+      "✓",
+      clear
+        ? "מענה הלקוח נמחק. תוצאת המערכת לא השתנתה."
+        : "מענה הלקוח נשמר בנפרד. תוצאת המערכת והמונים לא השתנו.",
+    );
   } catch (error) {
     feedback.dataset.state = "error";
-    feedback.textContent = error.message || "שמירת ההחלטה נכשלה.";
+    feedback.textContent = error.message || "שמירת מענה הלקוח נכשלה.";
   } finally {
-    manualReviewSaving = false;
+    tenderResponseSaving = false;
     for (const control of controls) control.disabled = false;
   }
 }
 
-function manualReviewForm(requirement, result) {
-  const form = document.createElement("section");
-  form.className = "manual-review-form";
-  form.setAttribute("aria-label", "אישור ידני לדרישה");
+function tenderResponseForm(requirement) {
+  const existing = responseFor(requirement);
+  const wrapper = document.createElement("details");
+  wrapper.className = "tender-response-form";
+  const summary = document.createElement("summary");
+  summary.textContent = existing ? "עריכת מענה הלקוח" : "הוספת מענה לדרישה";
+  const form = document.createElement("form");
+  form.className = "tender-response-form-body";
+  form.setAttribute("aria-label", "מענה הלקוח לדרישה");
 
   const heading = document.createElement("h4");
-  heading.textContent = "החלטת העסק לגבי הדרישה";
+  heading.textContent = "מענה הלקוח לדרישה";
   const guidance = document.createElement("p");
-  guidance.className = "manual-review-guidance";
-  guidance.textContent = "לאחר בדיקת המקור, סמנו אם העסק עומד בדרישה. ההחלטה תישמר בנפרד מתוצאת המערכת.";
+  guidance.className = "tender-response-guidance";
+  guidance.textContent = "המענה נשמר במכרז הזה בלבד ואינו משנה את תוצאת המערכת או את פרופיל העסק.";
+
+  const fields = document.createElement("div");
+  fields.className = "tender-response-fields";
+
+  const statusLabel = document.createElement("label");
+  statusLabel.textContent = "מענה";
+  const status = document.createElement("select");
+  status.name = "response_status";
+  status.required = true;
+  status.append(new Option("בחרו מענה…", ""));
+  for (const [value, meta] of Object.entries(RESPONSE_STATUS_META)) {
+    status.append(new Option(`${meta.icon} ${meta.label}`, value));
+  }
+  status.value = existing?.response_status ?? "";
+  statusLabel.append(status);
+
+  const basisLabel = document.createElement("label");
+  basisLabel.textContent = "בסיס למענה";
+  const basis = document.createElement("select");
+  basis.name = "response_basis";
+  basis.append(new Option("לא צוין", ""));
+  for (const [value, label] of Object.entries(RESPONSE_BASIS_META)) basis.append(new Option(label, value));
+  basis.value = existing?.response_basis ?? "user_statement";
+  basisLabel.append(basis);
+
+  const reminderLabel = document.createElement("label");
+  reminderLabel.className = "tender-response-reminder";
+  reminderLabel.textContent = "תאריך יעד לתזכורת (רשות)";
+  const reminder = document.createElement("input");
+  reminder.type = "date";
+  reminder.name = "reminder_on";
+  reminder.value = existing?.reminder_on ?? "";
+  reminderLabel.append(reminder);
+  const reminderHelp = document.createElement("small");
+  reminderHelp.textContent = "בלי תאריך יעד לא יישלח מייל.";
+  reminderLabel.append(reminderHelp);
+  fields.append(statusLabel, basisLabel, reminderLabel);
 
   const noteLabel = document.createElement("label");
   noteLabel.textContent = "הערה או אסמכתא (רשות)";
   const note = document.createElement("textarea");
+  note.name = "response_note";
   note.rows = 2;
   note.maxLength = 500;
-  note.value = result.manual_review?.note ?? "";
-  note.placeholder = "לדוגמה: נבדק מול רישיון בתוקף";
+  note.value = existing?.note ?? "";
+  note.placeholder = "לדוגמה: נדרש אישור של מנהל הכספים";
   noteLabel.append(note);
 
   const actions = document.createElement("div");
-  actions.className = "manual-review-actions";
-  const metButton = document.createElement("button");
-  metButton.type = "button";
-  metButton.className = "button manual-review-met";
-  metButton.textContent = "✓ העסק עומד בדרישה";
-  const gapButton = document.createElement("button");
-  gapButton.type = "button";
-  gapButton.className = "button manual-review-gap";
-  gapButton.textContent = "✕ העסק אינו עומד בדרישה";
-  const resetButton = document.createElement("button");
-  resetButton.type = "button";
-  resetButton.className = "button button-text manual-review-reset";
-  resetButton.textContent = "↺ בטל החלטה ידנית";
-  resetButton.hidden = !result.manual_review;
-  actions.append(metButton, gapButton, resetButton);
+  actions.className = "tender-response-actions";
+  const saveButton = document.createElement("button");
+  saveButton.type = "submit";
+  saveButton.className = "button button-secondary";
+  saveButton.textContent = "שמור מענה";
+  const clearButton = document.createElement("button");
+  clearButton.type = "button";
+  clearButton.className = "button button-text tender-response-reset";
+  clearButton.textContent = "מחק מענה";
+  clearButton.hidden = !existing;
+  actions.append(saveButton, clearButton);
 
   const feedback = document.createElement("p");
-  feedback.className = "manual-review-feedback";
+  feedback.className = "tender-response-feedback";
   feedback.setAttribute("aria-live", "polite");
-  if (result.manual_review) {
+  if (existing) {
     feedback.dataset.state = "success";
-    feedback.textContent = result.manual_review.decision === "met"
-      ? "✓ נשמר אישור ידני: העסק עומד בדרישה."
-      : "✕ נשמרה החלטה ידנית: העסק אינו עומד בדרישה.";
+    feedback.textContent = existing.response_status === TENDER_RESPONSE_STATUS.REVIEW && !existing.reminder_on
+      ? "המענה נשמר. לא הוגדר תאריך יעד ולכן לא יישלח מייל."
+      : "✓ המענה נשמר במכרז זה.";
   }
 
-  metButton.addEventListener("click", () => saveManualReview(requirement.requirement_id, "met", note.value, form));
-  gapButton.addEventListener("click", () => saveManualReview(requirement.requirement_id, "gap", note.value, form));
-  resetButton.addEventListener("click", () => saveManualReview(requirement.requirement_id, null, note.value, form));
-  form.append(heading, guidance, noteLabel, actions, feedback);
-  return form;
+  const updateReminderVisibility = () => {
+    reminderLabel.hidden = status.value !== TENDER_RESPONSE_STATUS.REVIEW;
+    if (reminderLabel.hidden) reminder.value = "";
+  };
+  status.addEventListener("change", updateReminderVisibility);
+  updateReminderVisibility();
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveTenderResponse(requirement.requirement_id, form);
+  });
+  clearButton.addEventListener("click", () => saveTenderResponse(requirement.requirement_id, form, true));
+  form.append(heading, guidance, fields, noteLabel, actions, feedback);
+  wrapper.append(summary, form);
+  return wrapper;
 }
 
 const statusWeight = { gap: 0, missing: 1, review: 2, met: 3 };
@@ -265,15 +391,17 @@ function subtreeMatches(requirement, childrenByParent) {
 
 function requirementCard(requirement, childrenByParent, ancestorIds = new Set()) {
   const result = resultFor(requirement);
+  const customerResponse = responseFor(requirement);
   const article = document.createElement("article"); article.className = "card requirement-card"; article.dataset.status = result.status;
   const header = document.createElement("header");
   const chips = document.createElement("div"); chips.className = "chip-row";
   chips.append(resultBadge(result.status));
-  if (result.manual_review) {
-    const manual = document.createElement("span");
-    manual.className = "chip chip-manual";
-    manual.textContent = "אישור משתמש";
-    chips.append(manual);
+  if (customerResponse) {
+    const responseMeta = RESPONSE_STATUS_META[customerResponse.response_status];
+    const responseChip = document.createElement("span");
+    responseChip.className = "chip chip-customer-response";
+    responseChip.textContent = `מענה לקוח: ${responseMeta?.icon ?? ""} ${responseMeta?.label ?? "נשמר"}`;
+    chips.append(responseChip);
   }
   if (requirement.requirement_target === "evaluation_rule") {
     const evaluation = document.createElement("span"); evaluation.className = "chip chip-evaluation"; evaluation.textContent = "סעיף ניקוד · אינו תנאי סף"; chips.append(evaluation);
@@ -286,28 +414,60 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
   const title = document.createElement("h3"); title.textContent = requirement.requirement_text;
   header.append(chips, title); article.append(header);
 
-  const comparison = document.createElement("div"); comparison.className = "requirement-comparison";
   const factKey = result.business_fact_key;
-  if (factKey) {
-    const fact = profile.business_facts?.[factKey];
-    const unitLabel = formatFactUnit(fact?.unit);
-    comparison.append(detailRow("נתון העסק", `${formatFactValue(fact)}${unitLabel ? ` ${unitLabel}` : ""}`));
-  }
-  if (result.manual_review) comparison.append(detailRow("תוצאת המערכת", `${RESULT_STATUS[result.automatic_status]?.icon ?? "!"} ${RESULT_STATUS[result.automatic_status]?.label ?? "דורש בדיקה"}`));
-  comparison.append(detailRow("הסבר התוצאה", result.explanation));
-  if (result.manual_review?.note) comparison.append(detailRow("הערת המשתמש", result.manual_review.note));
+  const fact = factKey ? profile.business_facts?.[factKey] : null;
+  const tenderValue = [
+    requirement.comparison_operator,
+    requirement.value,
+    formatFactUnit(requirement.unit),
+  ].filter((value) => value !== null && value !== undefined && value !== "").join(" ");
+  const businessUnit = formatFactUnit(fact?.unit);
+  const businessValue = factKey
+    ? `${formatFactValue(fact)}${businessUnit ? ` ${businessUnit}` : ""}`
+    : null;
+  const dataComparison = document.createElement("div");
+  dataComparison.className = "requirement-data-comparison";
+  dataComparison.append(
+    informationPanel("מה המכרז דורש", "מקור: מסמך המכרז", "tender-data-panel", [
+      ["ערך ותנאי", tenderValue || "לא צוין ערך מובנה"],
+      ["תחולה", requirement.scope],
+      ["תקופה", requirement.period],
+    ]),
+    informationPanel("מה ידוע על העסק", "מקור: פרופיל העסק", "business-data-panel", factKey ? [
+      ["שם הנתון", labelForFact(factKey)],
+      ["ערך בפרופיל", businessValue],
+      ["תחולה", fact?.scope],
+      ["תקופה", fact?.period],
+      ["בתוקף עד", fact?.valid_until],
+    ] : [], "לסעיף הזה אין Business Fact חוזר בפרופיל העסק."),
+  );
+  article.append(dataComparison);
+
+  const comparison = document.createElement("section"); comparison.className = "requirement-comparison";
+  const comparisonHeading = document.createElement("h4"); comparisonHeading.textContent = "תוצאת המערכת";
+  comparison.append(comparisonHeading);
+  comparison.append(detailRow("מצב", `${RESULT_STATUS[result.status]?.icon ?? "!"} ${RESULT_STATUS[result.status]?.label ?? "דורש בדיקה"}`));
+  comparison.append(detailRow("הסבר", result.explanation));
   article.append(comparison);
+
+  if (customerResponse) {
+    const responseSummary = document.createElement("section");
+    responseSummary.className = "customer-response-summary";
+    const responseHeading = document.createElement("h4"); responseHeading.textContent = "מענה הלקוח למכרז הזה";
+    responseSummary.append(responseHeading);
+    const responseMeta = RESPONSE_STATUS_META[customerResponse.response_status];
+    responseSummary.append(detailRow("מענה", `${responseMeta?.icon ?? ""} ${responseMeta?.label ?? "נשמר"}`));
+    if (customerResponse.response_basis) responseSummary.append(detailRow("בסיס למענה", RESPONSE_BASIS_META[customerResponse.response_basis] ?? "לא צוין"));
+    if (customerResponse.note) responseSummary.append(detailRow("הערה", customerResponse.note));
+    if (customerResponse.reminder_on) responseSummary.append(detailRow("יעד לתזכורת", customerResponse.reminder_on));
+    article.append(responseSummary);
+  }
   if (result.status === "missing" && factKey) article.append(factEditor(factKey, requirement));
-  const canReviewManually = requirement.requirement_target === "business_fact"
-    && !childrenByParent.has(requirement.requirement_id)
-    && (result.status === "review" || result.automatic_status === "review");
-  if (canReviewManually) article.append(manualReviewForm(requirement, result));
+  if (!childrenByParent.has(requirement.requirement_id)) article.append(tenderResponseForm(requirement));
 
   const fields = document.createElement("div"); fields.className = "requirement-fields";
-  const valueLabel = requirement.requirement_target === "evaluation_rule" ? "ניקוד מרבי / ערך" : "ערך";
   const fieldValues = [
-    [valueLabel, requirement.value], ["יחידה", formatFactUnit(requirement.unit)],
-    ["תנאי", requirement.comparison_operator], ["עמוד", requirement.source_page],
+    ["עמוד", requirement.source_page],
     ["סעיף", requirement.source_section], ["סוג מקור", requirement.source_type],
     ["טבלה", requirement.table_id], ["שורה", requirement.row_index],
   ];
@@ -360,6 +520,7 @@ function renderRequirements() {
 
 function renderOverview() {
   const results = tender.results ?? {};
+  document.querySelector("#analysis-stale-warning").hidden = results.stale !== true;
   const counts = results.counts ?? { gap: 0, missing: 0, review: 0, met: 0 };
   for (const status of ["gap", "missing", "review", "met"]) text(`${status}-count`, String(counts[status] ?? 0));
   text("compliance-percent", results.compliance_percent === null || results.compliance_percent === undefined ? "לא מחושב" : `${results.compliance_percent}%`);
@@ -456,6 +617,12 @@ async function refreshData() {
   if (tenderResult.error) throw new Error("לא הצלחנו לקרוא את המכרז.");
   if (profileResult.error) throw new Error("לא הצלחנו לקרוא את פרופיל העסק.");
   tender = tenderResult.data;
+  tender.results ??= {};
+  tender.results.responses = normalizeTenderResponses(
+    tender.requirements ?? [],
+    tender.results.responses ?? {},
+    tender.results.manual_reviews ?? {},
+  );
   profile = profileResult.data ?? { user_id: currentUser.id, business_facts: {} };
   profile.business_facts ??= {};
 }

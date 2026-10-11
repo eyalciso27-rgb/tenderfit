@@ -1,0 +1,152 @@
+{
+  "name": "TenderFit F32 — תזכורות יומיות",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-720, 0],
+      "id": "c13f98c5-d5cb-4cea-b7d8-f32schedule01",
+      "name": "פעם ביום"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "tenders",
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [-500, 0],
+      "id": "c13f98c5-d5cb-4cea-b7d8-f32supabase1",
+      "name": "קריאת מכרזים"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map((item) => item.json);\nconst appUrl = 'https://CHANGE-ME.github.io/tenderfit';\nconst now = new Date();\nconst parts = new Intl.DateTimeFormat('en', { timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);\nconst p = Object.fromEntries(parts.map((part) => [part.type, part.value]));\nconst today = `${p.year}-${p.month}-${p.day}`;\nconst sentAt = now.toISOString();\nconst dayDiff = (date) => Math.round((Date.parse(`${date}T00:00:00.000Z`) - Date.parse(`${today}T00:00:00.000Z`)) / 86400000);\nconst output = [];\nfor (const tender of rows) {\n  const results = tender.results && typeof tender.results === 'object' ? tender.results : {};\n  const responses = results.responses && typeof results.responses === 'object' ? results.responses : {};\n  const requirements = new Map((tender.requirements || []).map((item) => [item.requirement_id, item]));\n  const dueIds = Object.entries(responses).filter(([, response]) => response?.response_status === 'review' && response.reminder_on && response.reminder_on <= today && !response.reminder_sent_at).map(([id]) => id);\n  const deadlineDate = typeof tender.submission_deadline === 'string' ? tender.submission_deadline.slice(0, 10) : null;\n  const days = deadlineDate ? dayDiff(deadlineDate) : null;\n  const deadlineDue = tender.decision === 'go' && Number.isFinite(days) && days >= 0 && days <= 7;\n  if (!deadlineDue && !dueIds.length) continue;\n  const lines = [`מכרז: ${tender.title || 'ללא שם'}`];\n  if (deadlineDue) lines.push(`מועד ההגשה בעוד ${days} ימים: ${deadlineDate}`);\n  if (dueIds.length) {\n    lines.push('', 'דרישות שהגיע מועד הבדיקה שלהן:');\n    for (const id of dueIds) {\n      const response = responses[id];\n      lines.push(`• ${requirements.get(id)?.requirement_text || id}`);\n      if (response.note) lines.push(`  הערה: ${response.note}`);\n    }\n  }\n  lines.push('', `${appUrl}/tender.html?id=${encodeURIComponent(tender.id)}`);\n  const nextResults = structuredClone(results);\n  nextResults.responses ||= {};\n  for (const id of dueIds) nextResults.responses[id] = { ...nextResults.responses[id], reminder_sent_at: sentAt };\n  output.push({ json: { tender_id: tender.id, subject: `TenderFit — תזכורת: ${tender.title || 'מכרז'}`, message: lines.join('\\n'), needs_results_update: dueIds.length > 0, results: nextResults, updated_at: sentAt } });\n}\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-260, 0],
+      "id": "c13f98c5-d5cb-4cea-b7d8-f32code0001",
+      "name": "בניית תזכורות"
+    },
+    {
+      "parameters": {
+        "sendTo": "CHANGE_TO_APPROVED_TEST_EMAIL@example.com",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.message }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [-20, 0],
+      "id": "c13f98c5-d5cb-4cea-b7d8-f32gmail001",
+      "name": "שליחת מייל בדיקה"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c13f98c5-d5cb-4cea-b7d8-f32condition",
+              "leftValue": "={{ $('בניית תזכורות').item.json.needs_results_update }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [220, 0],
+      "id": "c13f98c5-d5cb-4cea-b7d8-f32if000001",
+      "name": "נדרש עדכון מועד שליחה"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "tenders",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('בניית תזכורות').item.json.tender_id }}"
+            }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "results",
+              "fieldValue": "={{ $('בניית תזכורות').item.json.results }}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ $('בניית תזכורות').item.json.updated_at }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [480, -80],
+      "id": "c13f98c5-d5cb-4cea-b7d8-f32supabase2",
+      "name": "שמירת reminder_sent_at"
+    }
+  ],
+  "connections": {
+    "פעם ביום": {
+      "main": [[{"node": "קריאת מכרזים", "type": "main", "index": 0}]]
+    },
+    "קריאת מכרזים": {
+      "main": [[{"node": "בניית תזכורות", "type": "main", "index": 0}]]
+    },
+    "בניית תזכורות": {
+      "main": [[{"node": "שליחת מייל בדיקה", "type": "main", "index": 0}]]
+    },
+    "שליחת מייל בדיקה": {
+      "main": [[{"node": "נדרש עדכון מועד שליחה", "type": "main", "index": 0}]]
+    },
+    "נדרש עדכון מועד שליחה": {
+      "main": [[{"node": "שמירת reminder_sent_at", "type": "main", "index": 0}], []]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "timezone": "Asia/Jerusalem",
+    "executionOrder": "v1"
+  },
+  "versionId": "c13f98c5-d5cb-4cea-b7d8-f32version01",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

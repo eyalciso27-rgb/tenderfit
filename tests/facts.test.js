@@ -56,8 +56,41 @@ test("creates missing facts dynamically instead of treating the registry as clos
     status: "missing",
     aliases: [],
     source: null,
+    scope: null,
+    period: null,
+    valid_until: null,
+    verification_status: null,
     updated_at: null,
   });
+});
+
+test("preserves fact context and initializes missing facts with requirement context", () => {
+  const output = ensureBusinessFacts([{
+    requirement_id: "r-context",
+    requirement_target: "business_fact",
+    business_fact_key: "annual_turnover",
+    business_fact_type: "currency",
+    unit: "ils",
+    scope: "legal_entity",
+    period: "2025",
+  }], {
+    existing_fact: {
+      business_fact_type: "string",
+      value: "מאומת",
+      status: "known",
+      scope: "branch_north",
+      period: "2024",
+      valid_until: "2027-01-01",
+      verification_status: "verified",
+    },
+  });
+
+  assert.equal(output.facts.annual_turnover.scope, "legal_entity");
+  assert.equal(output.facts.annual_turnover.period, "2025");
+  assert.equal(output.facts.existing_fact.scope, "branch_north");
+  assert.equal(output.facts.existing_fact.period, "2024");
+  assert.equal(output.facts.existing_fact.valid_until, "2027-01-01");
+  assert.equal(output.facts.existing_fact.verification_status, "verified");
 });
 
 test("preserves Hebrew labels and fills missing labels from a requirement", () => {

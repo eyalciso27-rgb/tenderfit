@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { aggregateComparison } from "../lib/aggregate.js";
-import { applyManualReviews } from "../lib/manual-review.js";
+import {
+  normalizeTenderResponse,
+  normalizeTenderResponses,
+} from "../lib/tender-response.js";
 
 function requirement(id, overrides = {}) {
   return {
@@ -16,97 +18,81 @@ function requirement(id, overrides = {}) {
   };
 }
 
-function automatic(status, explanation = "תוצאת הקוד") {
-  return { status, explanation, business_fact_key: "test_fact" };
-}
-
 function review(decision, note = "") {
   return { decision, note, reviewed_at: "2026-10-11T10:00:00.000Z", source: "browser" };
 }
 
-test("manual confirmation resolves a review while preserving the automatic result", () => {
+test("legacy manual decisions migrate to separate tender responses", () => {
   const requirements = [requirement("r1")];
-  const applied = applyManualReviews(requirements, { r1: automatic("review") }, { r1: review("met", "נבדק מול מסמך") });
-  const result = applied.results.r1;
+  const responses = normalizeTenderResponses(requirements, {}, { r1: review("met", "נבדק מול מסמך") });
 
-  assert.equal(result.status, "met");
-  assert.equal(result.automatic_status, "review");
-  assert.equal(result.automatic_explanation, "תוצאת הקוד");
-  assert.equal(result.manual_review.source, "user");
-  assert.equal(result.manual_review.note, "נבדק מול מסמך");
-  assert.deepEqual(applied.manualReviews, { r1: result.manual_review });
+  assert.equal(responses.r1.response_status, "met");
+  assert.equal(responses.r1.response_basis, "user_statement");
+  assert.equal(responses.r1.source, "user");
+  assert.equal(responses.r1.note, "נבדק מול מסמך");
 });
 
-test("manual met and gap decisions update counters and compliance", () => {
-  const requirements = [requirement("met"), requirement("gap"), requirement("review")];
-  const automaticResults = {
-    met: automatic("review"),
-    gap: automatic("review"),
-    review: automatic("review"),
-  };
-  const applied = applyManualReviews(requirements, automaticResults, {
-    met: review("met"),
-    gap: review("gap"),
+test("all customer response states are stored without an automatic result", () => {
+  for (const status of ["met", "gap", "partial", "conditional", "review", "not_applicable"]) {
+    const response = normalizeTenderResponse({
+      response_status: status,
+      response_basis: "document",
+      note: "נבדק",
+      updated_at: "2026-10-11T10:00:00.000Z",
+    });
+    assert.equal(response.response_status, status);
+    assert.equal("automatic_status" in response, false);
+  }
+});
+
+test("a reminder is kept only for requires-review and may omit a date", () => {
+  const withDate = normalizeTenderResponse({
+    response_status: "review",
+    reminder_on: "2026-10-20",
+    reminder_sent_at: "2026-10-20T08:00:00.000Z",
   });
-  const output = aggregateComparison(requirements, applied.results);
+  const withoutDate = normalizeTenderResponse({ response_status: "review" });
+  const irrelevantDate = normalizeTenderResponse({
+    response_status: "met",
+    reminder_on: "2026-10-20",
+    reminder_sent_at: "2026-10-20T08:00:00.000Z",
+  });
 
-  assert.deepEqual(output.counts, { met: 1, gap: 1, review: 1, missing: 0 });
-  assert.equal(output.compliance_percent, 33);
+  assert.equal(withDate.reminder_on, "2026-10-20");
+  assert.equal(withDate.reminder_sent_at, "2026-10-20T08:00:00.000Z");
+  assert.equal(withoutDate.reminder_on, null);
+  assert.equal(irrelevantDate.reminder_on, null);
+  assert.equal(irrelevantDate.reminder_sent_at, null);
 });
 
-test("manual child decisions participate in parent aggregation", () => {
+test("responses are allowed only for atomic requirements", () => {
   const requirements = [
     requirement("parent", { logic_type: "all_of" }),
     requirement("child-a", { parent_requirement_id: "parent" }),
-    requirement("child-b", { parent_requirement_id: "parent" }),
   ];
-  const automaticResults = {
-    parent: automatic("review"),
-    "child-a": automatic("review"),
-    "child-b": automatic("met"),
-  };
-  const applied = applyManualReviews(requirements, automaticResults, {
-    "child-a": review("gap"),
+  const responses = normalizeTenderResponses(requirements, {
+    parent: { response_status: "met" },
+    "child-a": { response_status: "conditional" },
   });
-  const output = aggregateComparison(requirements, applied.results);
 
-  assert.equal(output.by_requirement_id.parent.status, "gap");
-  assert.deepEqual(output.counts, { met: 1, gap: 1, review: 0, missing: 0 });
+  assert.equal(responses.parent, undefined);
+  assert.equal(responses["child-a"].response_status, "conditional");
 });
 
-test("manual reviews cannot override parents, non-business requirements, or decisive code results", () => {
-  const requirements = [
-    requirement("parent", { logic_type: "all_of" }),
-    requirement("child", { parent_requirement_id: "parent" }),
-    requirement("automatic-met"),
-    requirement("evaluation", { requirement_target: "evaluation_rule" }),
-  ];
-  const automaticResults = {
-    parent: automatic("review"),
-    child: automatic("review"),
-    "automatic-met": automatic("met"),
-    evaluation: automatic("review"),
-  };
-  const applied = applyManualReviews(requirements, automaticResults, {
-    parent: review("met"),
-    "automatic-met": review("gap"),
-    evaluation: review("met"),
+test("responses may belong to non-business tender requirements", () => {
+  const requirements = [requirement("submission", { requirement_target: "submission_obligation" })];
+  const responses = normalizeTenderResponses(requirements, {
+    submission: { response_status: "conditional", response_basis: "future_commitment" },
   });
 
-  assert.equal(applied.results.parent.status, "review");
-  assert.equal(applied.results["automatic-met"].status, "met");
-  assert.equal(applied.results.evaluation.status, "review");
-  assert.deepEqual(applied.manualReviews, {});
+  assert.equal(responses.submission.response_status, "conditional");
+  assert.equal(responses.submission.response_basis, "future_commitment");
 });
 
-test("invalid decisions are ignored and long notes are bounded", () => {
-  const requirements = [requirement("invalid"), requirement("valid")];
-  const automaticResults = { invalid: automatic("review"), valid: automatic("review") };
-  const applied = applyManualReviews(requirements, automaticResults, {
-    invalid: review("missing"),
-    valid: review("met", "א".repeat(700)),
-  });
+test("invalid responses are ignored and long notes are bounded", () => {
+  const invalid = normalizeTenderResponse({ response_status: "missing" });
+  const valid = normalizeTenderResponse({ response_status: "met", note: "א".repeat(700) });
 
-  assert.equal(applied.results.invalid.status, "review");
-  assert.equal(applied.results.valid.manual_review.note.length, 500);
+  assert.equal(invalid, null);
+  assert.equal(valid.note.length, 500);
 });

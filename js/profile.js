@@ -7,6 +7,7 @@ import {
   parseFactInput,
   questionForFact,
 } from "./fact-values.js";
+import { markAffectedTenderAnalysesStale } from "./analysis-staleness.js";
 import { supabase } from "./supabase.js";
 
 const message = document.querySelector("#profile-message");
@@ -65,25 +66,33 @@ async function saveFact(key, fact, input, statusElement, button) {
   button.disabled = true;
   try {
     const value = parseFactInput(fact.business_fact_type, input.value);
+    const changedAt = new Date().toISOString();
     const updatedFact = {
       ...fact,
       value,
       status: value === null ? "missing" : "known",
       source: "user",
-      updated_at: new Date().toISOString(),
+      updated_at: changedAt,
     };
     const updatedFacts = { ...profile.business_facts, [key]: updatedFact };
     const { error } = await supabase.from("business_profile").upsert({
       user_id: currentUser.id,
       business_facts: updatedFacts,
-      updated_at: new Date().toISOString(),
+      updated_at: changedAt,
     }, { onConflict: "user_id" });
     if (error) throw new Error("שמירת הנתון נכשלה.");
     profile.business_facts = updatedFacts;
+    let staleMessage = "";
+    try {
+      const affected = await markAffectedTenderAnalysesStale(supabase, currentUser.id, [key], changedAt);
+      staleMessage = affected ? ` ${affected} ניתוחים קודמים סומנו לבדיקה מחדש.` : "";
+    } catch (staleError) {
+      staleMessage = ` ${staleError.message}`;
+    }
     const status = FACT_STATUS[updatedFact.status];
     statusElement.dataset.status = updatedFact.status;
     statusElement.textContent = `${status.icon} ${status.label}`;
-    setMessage("success", "✓", "הנתון נשמר וישמש בהשוואה הבאה בכל המכרזים.");
+    setMessage("success", "✓", `הנתון נשמר וישמש בהשוואה הבאה בכל המכרזים.${staleMessage}`);
   } catch (error) {
     setMessage("error", "✕", error.message);
   } finally {
@@ -152,15 +161,23 @@ if (loadDemoButton) {
       if (!demoResponse.ok) throw new Error("טעינת קובץ נתוני הבדיקה נכשלה.");
       const demoFacts = await demoResponse.json();
       const updatedFacts = { ...(profile.business_facts ?? {}), ...demoFacts };
+      const changedAt = new Date().toISOString();
       const { error } = await supabase.from("business_profile").upsert({
         user_id: currentUser.id,
         business_facts: updatedFacts,
-        updated_at: new Date().toISOString(),
+        updated_at: changedAt,
       }, { onConflict: "user_id" });
       if (error) throw new Error("שמירת הנתונים נכשלה.");
       profile.business_facts = updatedFacts;
+      let staleMessage = "";
+      try {
+        const affected = await markAffectedTenderAnalysesStale(supabase, currentUser.id, Object.keys(demoFacts), changedAt);
+        staleMessage = affected ? ` ${affected} ניתוחים קודמים סומנו לבדיקה מחדש.` : "";
+      } catch (staleError) {
+        staleMessage = ` ${staleError.message}`;
+      }
       render();
-      setMessage("success", "✓", "כל 31 עובדות העסק נטענו בהצלחה בנתוני בדיקה ונשמרו בפרופיל.");
+      setMessage("success", "✓", `כל 31 עובדות העסק נטענו בהצלחה בנתוני בדיקה ונשמרו בפרופיל.${staleMessage}`);
     } catch (error) {
       setMessage("error", "✕", error.message);
     } finally {
