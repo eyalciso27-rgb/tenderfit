@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.js";
+import { organizeRequirements } from "./requirement-tree.js";
 import { calculateUrgency, formatDeadline } from "./urgency.js";
 
 const params = new URLSearchParams(location.search);
@@ -16,7 +17,7 @@ function detailRow(label, value) {
   row.append(term, data); return row;
 }
 
-function requirementCard(requirement, children = []) {
+function requirementCard(requirement, childrenByParent, ancestorIds = new Set()) {
   const article = document.createElement("article"); article.className = "card requirement-card";
   const header = document.createElement("header");
   const chips = document.createElement("div"); chips.className = "chip-row";
@@ -46,11 +47,15 @@ function requirementCard(requirement, children = []) {
   if (requirement.cell_text) { const cell = document.createElement("p"); cell.className = "cell-text"; cell.append("תא בטבלה: ", bidi(requirement.cell_text)); source.append(cell); }
   article.append(source);
 
+  const nextAncestors = new Set(ancestorIds);
+  nextAncestors.add(requirement.requirement_id);
+  const children = (childrenByParent.get(requirement.requirement_id) ?? [])
+    .filter((child) => !nextAncestors.has(child.requirement_id));
   if (children.length) {
     const childGroup = document.createElement("details"); childGroup.className = "children-group";
     const childSummary = document.createElement("summary"); childSummary.textContent = `${children.length} דרישות משנה`;
     const list = document.createElement("div"); list.className = "child-list";
-    for (const child of children) list.append(requirementCard(child));
+    for (const child of children) list.append(requirementCard(child, childrenByParent, nextAncestors));
     childGroup.append(childSummary, list); article.append(childGroup);
   }
   return article;
@@ -58,14 +63,8 @@ function requirementCard(requirement, children = []) {
 
 function renderRequirements(requirements) {
   const list = document.querySelector("#requirements-list");
-  const byParent = new Map();
-  for (const requirement of requirements) {
-    if (!requirement.parent_requirement_id) continue;
-    const children = byParent.get(requirement.parent_requirement_id) ?? [];
-    children.push(requirement); byParent.set(requirement.parent_requirement_id, children);
-  }
-  const roots = requirements.filter((requirement) => !requirement.parent_requirement_id);
-  for (const requirement of roots) list.append(requirementCard(requirement, byParent.get(requirement.requirement_id) ?? []));
+  const { roots, childrenByParent } = organizeRequirements(requirements);
+  for (const requirement of roots) list.append(requirementCard(requirement, childrenByParent));
   document.querySelector("#empty-state").hidden = requirements.length !== 0;
 }
 
