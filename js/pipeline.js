@@ -142,6 +142,7 @@ async function runRegionQueue(tenderId, regions, onProgress) {
             onProgress?.({ step: "extract", state: "retrying", regionId: region.region_id, regionTitle: region.title });
             continue;
           }
+          onProgress?.({ step: "extract", state: "failed", regionId: region.region_id, regionTitle: region.title, error });
           throw error;
         }
       }
@@ -162,7 +163,10 @@ export async function processTender(tenderId, onProgress) {
     runModelStepWithRetry("map", tenderId, onProgress),
     runModelStepWithRetry("metadata", tenderId, onProgress),
   ]);
-  if (mapResult.status === "rejected") throw mapResult.reason;
+  if (mapResult.status === "rejected") {
+    onProgress?.({ step: "map", state: "failed", error: mapResult.reason });
+    throw mapResult.reason;
+  }
   if (metadataResult.status === "rejected") {
     onProgress?.({ step: "metadata", state: "failed", error: metadataResult.reason });
   }
@@ -173,6 +177,9 @@ export async function processTender(tenderId, onProgress) {
   await runRegionQueue(tenderId, regions, onProgress);
   onProgress?.({ step: "validate", state: "starting" });
   const validation = await runUntilDone("validate", tenderId, {}, onProgress);
+  onProgress?.({ step: "facts", state: "starting" });
+  onProgress?.({ step: "compare", state: "starting" });
+  const comparison = await runUntilDone("compare", tenderId, {}, onProgress);
   localStorage.removeItem("tenderfit.activeTender");
-  return { tenderId, durationMs: Date.now() - startedAt, validation: validation.data };
+  return { tenderId, durationMs: Date.now() - startedAt, validation: validation.data, comparison: comparison.data };
 }

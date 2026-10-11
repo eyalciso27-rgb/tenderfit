@@ -1,0 +1,43 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+const uploadHtml = await readFile(new URL("../upload.html", import.meta.url), "utf8");
+const uploadScript = await readFile(new URL("../js/upload.js", import.meta.url), "utf8");
+const pipelineScript = await readFile(new URL("../js/pipeline.js", import.meta.url), "utf8");
+const processingModel = await readFile(new URL("../lib/processing-status.js", import.meta.url), "utf8");
+const tenderHtml = await readFile(new URL("../tender.html", import.meta.url), "utf8");
+const tenderScript = await readFile(new URL("../js/tender.js", import.meta.url), "utf8");
+
+test("F10 renders six persisted processing phases with words and icons", () => {
+  assert.match(uploadHtml, /id="processing-title"/);
+  assert.match(uploadHtml, /מתוך <bdi>6<\/bdi>/);
+  assert.match(uploadHtml, /role="progressbar"/);
+  for (const label of ["מעלה את המסמך", "ממפה אזורי דרישות", "מחלץ דרישות", "מאמת שלמות ומקור", "בודק נתונים חסרים", "מחשב התאמה"]) {
+    assert.match(processingModel, new RegExp(label));
+  }
+  assert.match(uploadScript, /\.select\("id,processing"\)/);
+  assert.match(uploadScript, /applyProcessingEvent/);
+  assert.doesNotMatch(uploadScript, /realtime|channel\(/i);
+});
+
+test("the upload flow now completes compare before navigating to the tender", () => {
+  assert.match(pipelineScript, /step: "facts", state: "starting"/);
+  assert.match(pipelineScript, /runUntilDone\("compare"/);
+  assert.match(pipelineScript, /localStorage\.removeItem\("tenderfit\.activeTender"\)/);
+});
+
+test("F22 exposes collapsible summary, dates and guarantees from saved F15 metadata", () => {
+  assert.match(tenderHtml, /<details id="executive-summary-section"/);
+  assert.match(tenderHtml, /<details id="dates-guarantees-section"/);
+  assert.match(tenderHtml, /מועדים קריטיים/);
+  assert.match(tenderHtml, /ערבויות/);
+  assert.match(tenderScript, /normalizeTenderMetadata\(tender\.metadata/);
+  assert.match(tenderScript, /סיכום מנהלים לא חולץ מהמסמך/);
+  assert.match(tenderScript, /ערבויות לא חולצו מהמסמך/);
+  assert.match(tenderHtml, /אינו ייעוץ משפטי/);
+});
+
+test("M6 does not add M7 tender-list or reminder features", () => {
+  assert.doesNotMatch(uploadHtml + tenderHtml, /רשימת מכרזים|תזכורת במייל/);
+});

@@ -30,6 +30,7 @@ import {
 import { buildAiErrorReport, buildDecisionUpdate } from "../lib/m4-actions.js";
 import { buildFitAnalysisDisplaySummary, userFacingAutomationText } from "../lib/fit-analysis.js";
 import { checklistForGo } from "../lib/checklist.js";
+import { normalizeTenderMetadata } from "../lib/tender-metadata.js";
 
 const params = new URLSearchParams(location.search);
 const tenderId = params.get("id");
@@ -157,6 +158,106 @@ function sourcePageLink(requirement, label = "פתח עמוד מקור") {
   link.href = Number.isFinite(page) ? `${sourcePdfUrl}#page=${page}` : sourcePdfUrl;
   link.textContent = label;
   return link;
+}
+
+function metadataSource(source) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "metadata-source";
+  const parts = [];
+  if (source?.page) parts.push(`עמוד ${source.page}`);
+  if (source?.section) parts.push(`סעיף ${source.section}`);
+  const sourceLabel = document.createElement("span");
+  sourceLabel.className = "muted";
+  sourceLabel.append("מקור: ", bidi(parts.join(" · ") || "לא חולץ"));
+  wrapper.append(sourceLabel);
+  if (sourcePdfUrl && source?.page) {
+    const link = document.createElement("a");
+    link.className = "button button-text source-page-link";
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.href = `${sourcePdfUrl}#page=${source.page}`;
+    link.textContent = "פתח עמוד מקור";
+    wrapper.append(link);
+  }
+  if (source?.quote) {
+    const quote = document.createElement("blockquote");
+    quote.textContent = source.quote;
+    wrapper.append(quote);
+  }
+  return wrapper;
+}
+
+function missingMetadata(copy) {
+  const empty = document.createElement("p");
+  empty.className = "metadata-empty";
+  empty.textContent = copy;
+  return empty;
+}
+
+function metadataDateCard(item) {
+  const card = document.createElement("article");
+  card.className = "metadata-item metadata-date-item";
+  if (/הגשה/.test(item.label)) card.classList.add("is-submission-deadline");
+  const title = document.createElement("h4");
+  title.textContent = item.label;
+  const value = document.createElement("strong");
+  value.append(bidi(item.iso ? formatDeadline(item.iso) : "לא חולץ"));
+  card.append(title, value, metadataSource(item.source));
+  return card;
+}
+
+function guaranteeCard(item) {
+  const card = document.createElement("article");
+  card.className = "metadata-item guarantee-item";
+  const title = document.createElement("h4");
+  title.textContent = item.type;
+  const grid = document.createElement("dl");
+  grid.className = "metadata-definition-grid";
+  const values = [
+    ["גובה", [item.amount, item.currency === "ILS" ? "₪" : item.currency].filter(Boolean).join(" ") || "לא חולץ"],
+    ["תוקף", item.validUntil ? formatDeadline(item.validUntil) : "לא חולץ"],
+  ];
+  for (const [label, rawValue] of values) {
+    const row = document.createElement("div");
+    const term = document.createElement("dt");
+    term.textContent = label;
+    const value = document.createElement("dd");
+    value.append(bidi(rawValue));
+    row.append(term, value);
+    grid.append(row);
+  }
+  card.append(title, grid, metadataSource(item.source));
+  return card;
+}
+
+function renderTenderMetadata() {
+  const metadata = normalizeTenderMetadata(tender.metadata, tender.submission_deadline);
+  const hasSummary = Boolean(metadata.executiveSummary || metadata.notes.length);
+  const summaryAvailability = document.querySelector("#executive-summary-availability");
+  summaryAvailability.dataset.available = String(hasSummary);
+  summaryAvailability.textContent = hasSummary ? "✓ חולץ" : "? לא חולץ";
+  document.querySelector("#executive-summary-text").textContent = metadata.executiveSummary || "סיכום מנהלים לא חולץ מהמסמך.";
+  const notesSection = document.querySelector("#metadata-notes-section");
+  const notesList = document.querySelector("#metadata-notes-list");
+  notesSection.hidden = metadata.notes.length === 0;
+  notesList.replaceChildren(...metadata.notes.map((note) => {
+    const item = document.createElement("li");
+    item.textContent = note;
+    return item;
+  }));
+
+  const datesList = document.querySelector("#critical-dates-list");
+  datesList.replaceChildren(...(metadata.dates.length
+    ? metadata.dates.map(metadataDateCard)
+    : [missingMetadata("מועדים קריטיים לא חולצו מהמסמך.")]));
+  const guaranteesList = document.querySelector("#guarantees-list");
+  guaranteesList.replaceChildren(...(metadata.guarantees.length
+    ? metadata.guarantees.map(guaranteeCard)
+    : [missingMetadata("ערבויות לא חולצו מהמסמך.")]));
+  const hasDatesOrGuarantees = metadata.dates.length > 0 || metadata.guarantees.length > 0;
+  const availability = document.querySelector("#dates-guarantees-availability");
+  availability.dataset.available = String(hasDatesOrGuarantees);
+  availability.textContent = hasDatesOrGuarantees ? "✓ חולץ" : "? לא חולץ";
 }
 
 function createFactInput(key, fact) {
@@ -920,6 +1021,7 @@ function renderAll() {
   renderTenderComparisonFacts();
   renderSourceTables();
   renderRequirements();
+  renderTenderMetadata();
   renderDecision();
 }
 
@@ -954,6 +1056,7 @@ async function compare(successCopy = null) {
     });
     await refreshData();
     renderAll();
+    if (tender.processing?.steps?.compare?.status === "done") localStorage.removeItem("tenderfit.activeTender");
     const elapsed = performance.now() - startedAt;
     setCompareMessage("success", "✓", successCopy ?? `ההשוואה והסבר ה־AI הושלמו בתוך ${(elapsed / 1000).toFixed(2)} שניות.`);
   } catch (error) {
@@ -1005,7 +1108,10 @@ async function load() {
   renderTenderHeader();
   pageMessage.hidden = true; content.hidden = false;
   if (tender.processing?.steps?.compare?.status !== "done" || !tender.results?.by_requirement_id) await compare();
-  else renderAll();
+  else {
+    localStorage.removeItem("tenderfit.activeTender");
+    renderAll();
+  }
 }
 
 document.querySelector("#logout-button").addEventListener("click", async () => { await supabase.auth.signOut(); location.replace("index.html"); });

@@ -2,6 +2,7 @@ import { supabase } from "./supabase.js";
 import { processTender } from "./pipeline.js";
 import { findLatestCompletedTender } from "./tender-selection.js";
 import { validateUploadFile } from "./upload-validation.js";
+import { applyProcessingEvent, buildProcessingStatus } from "../lib/processing-status.js";
 
 const fileInput = document.querySelector("#pdf-file");
 const dropZone = document.querySelector("#drop-zone");
@@ -13,20 +14,70 @@ const continueButton = document.querySelector("#continue-button");
 const statusBox = document.querySelector("#processing-status");
 const progressBar = document.querySelector("#progress-bar");
 const progressText = document.querySelector("#progress-text");
+const processingStepNumber = document.querySelector("#processing-step-number");
+const processingStateLabel = document.querySelector("#processing-state-label");
+const processingSteps = document.querySelector("#processing-steps");
+const processingProgress = document.querySelector("#processing-progress");
+const metadataWarning = document.querySelector("#metadata-processing-warning");
 const logoutButton = document.querySelector("#logout-button");
 const completedTenderCard = document.querySelector("#completed-tender-card");
 const completedTenderTitle = document.querySelector("#completed-tender-title");
 const completedTenderNumber = document.querySelector("#completed-tender-number");
 const openCompletedTender = document.querySelector("#open-completed-tender");
 let selectedFile = null;
-let completedRegions = new Set();
-let totalRegions = 0;
+let currentProcessing = { steps: {}, regions: {} };
+let pipelineRunning = false;
+let lastProgressEvent = null;
+
+const STATUS_META = Object.freeze({
+  pending: { icon: "□", label: "עוד לא התחיל" },
+  working: { icon: "◐", label: "בעבודה" },
+  done: { icon: "✓", label: "הסתיים" },
+  failed: { icon: "✕", label: "נכשל" },
+});
 
 function setStatus(state, text, percent = 0) {
   statusBox.hidden = false;
   statusBox.dataset.state = state;
   progressText.textContent = text;
   progressBar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+  processingProgress.setAttribute("aria-valuenow", String(Math.max(0, Math.min(100, percent))));
+}
+
+function renderProcessingStatus(headline = null) {
+  const view = buildProcessingStatus(currentProcessing);
+  const active = view.phases[view.currentStep - 1];
+  const state = view.complete ? "done" : active?.status ?? "pending";
+  const meta = STATUS_META[state] ?? STATUS_META.pending;
+  statusBox.hidden = false;
+  statusBox.dataset.state = state === "failed" ? "error" : state === "done" ? "success" : state === "working" ? "working" : "ready";
+  processingStepNumber.textContent = String(view.currentStep);
+  processingStateLabel.dataset.state = state;
+  processingStateLabel.textContent = `${meta.icon} ${meta.label}`;
+  progressText.textContent = headline ?? (view.complete
+    ? "העיבוד הושלם."
+    : `${active?.label ?? "מכין את העיבוד"}${active?.detail ? ` — ${active.detail}` : ""}`);
+  progressBar.style.width = `${view.percent}%`;
+  processingProgress.setAttribute("aria-valuenow", String(view.percent));
+  metadataWarning.hidden = view.metadataStatus !== "failed";
+  processingSteps.replaceChildren(...view.phases.map((phase) => {
+    const item = document.createElement("li");
+    item.dataset.state = phase.status;
+    const phaseMeta = STATUS_META[phase.status] ?? STATUS_META.pending;
+    const icon = document.createElement("span");
+    icon.className = "processing-step-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = phaseMeta.icon;
+    const copy = document.createElement("span");
+    const label = document.createElement("strong");
+    label.textContent = phase.label;
+    const status = document.createElement("small");
+    status.textContent = `${phaseMeta.label}${phase.detail ? ` · ${phase.detail}` : ""}`;
+    copy.append(label, status);
+    item.append(icon, copy);
+    return item;
+  }));
+  return view;
 }
 
 function selectFile(file) {
@@ -37,7 +88,8 @@ function selectFile(file) {
     fileMeta.textContent = `${(file.size / 1024 / 1024).toFixed(1)} MB · PDF`;
     fileCard.hidden = false;
     startButton.disabled = false;
-    setStatus("ready", "הקובץ מוכן להעלאה.", 0);
+    currentProcessing = { steps: {}, regions: {} };
+    renderProcessingStatus("הקובץ מוכן להעלאה.");
   } catch (error) {
     selectedFile = null;
     fileCard.hidden = true;
@@ -68,6 +120,7 @@ async function createTender(file) {
     processing: { steps: {}, regions: {} }, regions: { regions: [] },
   }).select("id").single();
   if (error) throw new Error("יצירת רשומת המכרז נכשלה.");
+  currentProcessing = { steps: {}, regions: {} };
   return data.id;
 }
 
@@ -87,36 +140,44 @@ async function showLatestCompletedTender() {
 }
 
 function progress(event) {
-  const labels = { upload: "מכין את המסמך", map: "ממפה את המכרז", metadata: "מחלץ פרטי מכרז", extract: "מחלץ דרישות", validate: "בודק ומאחד דרישות" };
-  const bases = { upload: 10, map: 22, metadata: 22, extract: 38, validate: 92 };
-  if (event.step === "extract" && event.state === "starting") {
-    completedRegions = new Set();
-    totalRegions = Number(event.total) || 0;
+  lastProgressEvent = event;
+  currentProcessing = applyProcessingEvent(currentProcessing, event);
+  const view = renderProcessingStatus();
+  if (event.step === "extract" && event.regionTitle && event.state !== "done") {
+    progressText.textContent = `${view.phases[2].label} — ${view.phases[2].detail ?? ""}: ${event.regionTitle}`;
   }
-  if (event.step === "extract" && event.state === "done" && event.regionId) completedRegions.add(event.regionId);
-  const extractPercent = event.step === "extract" && totalRegions > 0
-    ? Math.round((completedRegions.size / totalRegions) * 50)
-    : 0;
-  const percent = Math.min(98, (bases[event.step] ?? 5) + extractPercent);
-  const regionProgress = event.step === "extract" && totalRegions > 0
-    ? ` — אזור ${completedRegions.size} מתוך ${totalRegions}`
-    : "";
-  const suffix = event.regionTitle ? `${regionProgress}: ${event.regionTitle}` : regionProgress;
-  setStatus(event.state === "failed" ? "error" : "working", `${labels[event.step] ?? "מעבד"}${suffix}…`, percent);
 }
 
 async function run(tenderId) {
   startButton.disabled = true;
-  continueButton.hidden = true;
+  continueButton.hidden = false;
+  continueButton.disabled = true;
+  pipelineRunning = true;
+  lastProgressEvent = null;
   try {
+    const { data: snapshot, error: snapshotError } = await supabase
+      .from("tenders")
+      .select("processing")
+      .eq("id", tenderId)
+      .single();
+    if (snapshotError) throw new Error("לא הצלחנו לקרוא את מצב העיבוד.");
+    currentProcessing = snapshot.processing ?? { steps: {}, regions: {} };
+    renderProcessingStatus();
     const result = await processTender(tenderId, progress);
     sessionStorage.setItem(`tenderfit.duration.${tenderId}`, String(result.durationMs));
-    setStatus("success", "העיבוד הסתיים. עוברים לדרישות…", 100);
+    renderProcessingStatus("העיבוד הסתיים. עוברים לניתוח…");
     window.location.assign(`tender.html?id=${encodeURIComponent(tenderId)}`);
   } catch (error) {
-    setStatus("error", error.message || "העיבוד נכשל. אפשר להמשיך מאותה נקודה.", Number.parseFloat(progressBar.style.width) || 0);
+    if (lastProgressEvent?.step) {
+      currentProcessing = applyProcessingEvent(currentProcessing, { ...lastProgressEvent, state: "failed" });
+    }
+    renderProcessingStatus(error.message || "העיבוד נעצר. אפשר להמשיך מאותה נקודה.");
+    statusBox.dataset.state = "error";
     continueButton.hidden = false;
     continueButton.dataset.tenderId = tenderId;
+  } finally {
+    pipelineRunning = false;
+    continueButton.disabled = false;
   }
 }
 
@@ -128,7 +189,9 @@ startButton.addEventListener("click", async () => {
   try { validateUploadFile(selectedFile); await run(await createTender(selectedFile)); }
   catch (error) { setStatus("error", error.message, 0); startButton.disabled = false; }
 });
-continueButton.addEventListener("click", () => run(continueButton.dataset.tenderId));
+continueButton.addEventListener("click", () => {
+  if (!pipelineRunning) run(continueButton.dataset.tenderId);
+});
 logoutButton.addEventListener("click", async () => { await supabase.auth.signOut(); window.location.replace("index.html"); });
 
 const { data: sessionData } = await supabase.auth.getSession();
@@ -138,8 +201,24 @@ if (!sessionData.session) {
   await showLatestCompletedTender();
   const activeTender = localStorage.getItem("tenderfit.activeTender");
   if (activeTender) {
-    continueButton.hidden = false;
-    continueButton.dataset.tenderId = activeTender;
-    setStatus("ready", "נמצא עיבוד קודם. אפשר להמשיך מאותה נקודה.", 0);
+    const { data: active, error } = await supabase
+      .from("tenders")
+      .select("id,processing")
+      .eq("id", activeTender)
+      .maybeSingle();
+    if (error || !active) {
+      localStorage.removeItem("tenderfit.activeTender");
+    } else {
+      currentProcessing = active.processing ?? { steps: {}, regions: {} };
+      const view = renderProcessingStatus("נמצא עיבוד קודם. אפשר להמשיך מאותה נקודה.");
+      if (view.complete) {
+        localStorage.removeItem("tenderfit.activeTender");
+        statusBox.hidden = true;
+      } else {
+        continueButton.hidden = false;
+        continueButton.disabled = false;
+        continueButton.dataset.tenderId = activeTender;
+      }
+    }
   }
 }

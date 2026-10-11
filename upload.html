@@ -36,13 +36,19 @@
           <span><strong id="file-name"></strong><small id="file-meta"></small></span>
         </div>
 
-        <div id="processing-status" class="processing-card" data-state="ready" hidden aria-live="polite">
-          <div class="progress-copy"><strong id="progress-text">מוכן</strong><span>אפשר לסגור ולחזור — המצב נשמר.</span></div>
-          <div class="progress-track" aria-hidden="true"><span id="progress-bar"></span></div>
-        </div>
+        <section id="processing-status" class="processing-card" data-state="ready" hidden aria-labelledby="processing-title">
+          <header class="processing-heading">
+            <div><p class="eyebrow">סטטוס עיבוד</p><h2 id="processing-title">שלב <bdi id="processing-step-number">1</bdi> מתוך <bdi>6</bdi></h2></div>
+            <span id="processing-state-label" class="processing-state-label" data-state="pending">□ עוד לא התחיל</span>
+          </header>
+          <div class="progress-copy"><strong id="progress-text" aria-live="polite">מוכן</strong><span>אפשר לסגור ולחזור — המצב נשמר.</span></div>
+          <div id="processing-progress" class="progress-track" role="progressbar" aria-label="התקדמות עיבוד המכרז" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progress-bar"></span></div>
+          <ol id="processing-steps" class="processing-steps" aria-label="שלבי העיבוד"></ol>
+          <p id="metadata-processing-warning" class="inline-warning" role="status" hidden>⚠ פרטי המכרז לא חולצו, אך חילוץ הדרישות יכול להמשיך.</p>
+        </section>
 
         <button id="start-button" class="button button-primary full-button" type="button" disabled>התחל ניתוח</button>
-        <button id="continue-button" class="button button-secondary full-button" type="button" hidden>המשך עיבוד קודם</button>
+        <button id="continue-button" class="button button-secondary full-button" type="button" hidden>המשך עיבוד</button>
 
         <aside id="completed-tender-card" class="completed-tender-card" hidden aria-labelledby="completed-tender-title">
           <div>

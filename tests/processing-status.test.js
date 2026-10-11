@@ -16,7 +16,7 @@ test("region progress is aggregated from the persisted processing state", () => 
     regions: { a: { status: "done" }, b: { status: "waiting" }, c: { status: "pending" } },
   });
   assert.equal(view.phases[2].status, "working");
-  assert.equal(view.phases[2].detail, "אזור 1 מתוך 3");
+  assert.equal(view.phases[2].detail, "אזור 2 מתוך 3");
   assert.deepEqual(view.regionProgress, { completed: 1, total: 3 });
   assert.equal(view.currentStep, 3);
 });
@@ -28,6 +28,12 @@ test("a metadata failure does not fail mapping when the map completed", () => {
   });
   assert.equal(view.phases[1].status, "done");
   assert.equal(view.metadataStatus, "failed");
+});
+
+test("mapping stays active while parallel metadata is still pending", () => {
+  const view = buildProcessingStatus({ steps: { upload: { status: "done" }, map: { status: "done" }, metadata: { status: "pending" } }, regions: {} });
+  assert.equal(view.phases[1].status, "working");
+  assert.equal(view.currentStep, 2);
 });
 
 test("facts finish when code comparison is stored while Fit Analysis is waiting", () => {
