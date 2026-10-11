@@ -1,7 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { formatFactValue, inputKindForFact, parseFactInput } from "../js/fact-values.js";
+import {
+  formatFactOption,
+  formatFactType,
+  formatFactUnit,
+  formatFactValue,
+  inputKindForFact,
+  parseFactInput,
+} from "../js/fact-values.js";
 
 test("the six Business Fact types have deterministic input handling", () => {
   assert.equal(parseFactInput("number", "1,250"), 1250);
@@ -20,4 +27,15 @@ test("fact formatting does not confuse boolean false with missing", () => {
   assert.equal(formatFactValue({ business_fact_type: "boolean", value: false }), "לא");
   assert.equal(formatFactValue({ business_fact_type: "number", value: 1200 }), "1,200");
   assert.equal(formatFactValue({ business_fact_type: "string", value: null }), "לא הוזן");
+});
+
+test("translates types, units and enum values to Hebrew for display", () => {
+  assert.equal(formatFactType("number"), "מספר");
+  assert.equal(formatFactType("boolean"), "כן / לא");
+  assert.equal(formatFactType("currency"), "מטבע (ש״ח)");
+  assert.equal(formatFactUnit("sites"), "אתרים");
+  assert.equal(formatFactUnit("diners"), "סועדים");
+  assert.equal(formatFactUnit("systems"), "מערכות");
+  assert.equal(formatFactOption("authorized_supplier"), "ספק מורשה בישראל");
+  assert.equal(formatFactOption("manufacturer"), "יצרן המערכת");
 });

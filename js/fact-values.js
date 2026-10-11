@@ -43,3 +43,49 @@ export function inputKindForFact(type) {
   if (type === "boolean" || type === "enum") return "select";
   return "text";
 }
+
+export const FACT_TYPE_LABELS = Object.freeze({
+  number: "מספר",
+  currency: "מטבע (ש״ח)",
+  boolean: "כן / לא",
+  date: "תאריך",
+  enum: "בחירה מרשימה",
+  string: "טקסט חופשי",
+});
+
+export const UNIT_LABELS = Object.freeze({
+  sites: "אתרים",
+  diners: "סועדים",
+  systems: "מערכות",
+  clients: "לקוחות",
+  years: "שנים",
+  months: "חודשים",
+  days: "ימים",
+  hours: "שעות",
+  projects: "פרויקטים",
+  ILS: "ש״ח",
+  USD: "דולר",
+  percent: "%",
+  MB: "מגה־בייט",
+  SMS: "מסרונים",
+  convictions: "הרשעות",
+  sanctions: "עיצומים",
+  fines: "קנסות",
+});
+
+export const ENUM_VALUE_LABELS = Object.freeze({
+  authorized_supplier: "ספק מורשה בישראל",
+  manufacturer: "יצרן המערכת",
+});
+
+export function formatFactType(type) {
+  return FACT_TYPE_LABELS[type] ?? type ?? "נתון";
+}
+
+export function formatFactUnit(unit) {
+  return UNIT_LABELS[unit] ?? unit ?? "";
+}
+
+export function formatFactOption(value) {
+  return ENUM_VALUE_LABELS[value] ?? value;
+}

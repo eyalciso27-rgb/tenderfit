@@ -1,4 +1,12 @@
-import { FACT_STATUS, RESULT_STATUS, formatFactValue, inputKindForFact, parseFactInput } from "./fact-values.js";
+import {
+  FACT_STATUS,
+  RESULT_STATUS,
+  formatFactOption,
+  formatFactUnit,
+  formatFactValue,
+  inputKindForFact,
+  parseFactInput,
+} from "./fact-values.js";
 import { callPipelineStep } from "./pipeline.js";
 import { organizeRequirements } from "./requirement-tree.js";
 import { groupTableRequirements, referencesTable } from "./source-tables.js";
@@ -38,7 +46,8 @@ function detailRow(label, value) {
 }
 
 function labelForFact(key) {
-  return registryByKey.get(key)?.description_he || String(key ?? "נתון עסק").replaceAll("_", " ");
+  const fact = profile?.business_facts?.[key];
+  return fact?.title_he || fact?.description_he || registryByKey.get(key)?.description_he || "נתון עסק נוסף";
 }
 
 function resultFor(requirement) {
@@ -82,7 +91,9 @@ function createFactInput(key, fact) {
   } else if (kind === "select" && registryFact?.allowed_values?.length) {
     input = document.createElement("select");
     input.append(new Option("בחרו…", ""));
-    for (const option of registryFact.allowed_values) input.append(new Option(option, option));
+    for (const option of registryFact.allowed_values) {
+      input.append(new Option(formatFactOption(option), option));
+    }
     input.value = fact.value ?? "";
   } else {
     input = document.createElement("input");
@@ -174,7 +185,8 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
   const factKey = result.business_fact_key;
   if (factKey) {
     const fact = profile.business_facts?.[factKey];
-    comparison.append(detailRow("נתון העסק", `${formatFactValue(fact)}${fact?.unit ? ` ${fact.unit}` : ""}`));
+    const unitLabel = formatFactUnit(fact?.unit);
+    comparison.append(detailRow("נתון העסק", `${formatFactValue(fact)}${unitLabel ? ` ${unitLabel}` : ""}`));
   }
   comparison.append(detailRow("הסבר התוצאה", result.explanation));
   article.append(comparison);
@@ -183,7 +195,7 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
   const fields = document.createElement("div"); fields.className = "requirement-fields";
   const valueLabel = requirement.requirement_target === "evaluation_rule" ? "ניקוד מרבי / ערך" : "ערך";
   const fieldValues = [
-    [valueLabel, requirement.value], ["יחידה", requirement.unit],
+    [valueLabel, requirement.value], ["יחידה", formatFactUnit(requirement.unit)],
     ["תנאי", requirement.comparison_operator], ["עמוד", requirement.source_page],
     ["סעיף", requirement.source_section], ["סוג מקור", requirement.source_type],
     ["טבלה", requirement.table_id], ["שורה", requirement.row_index],

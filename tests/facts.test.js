@@ -43,10 +43,13 @@ test("creates missing facts dynamically instead of treating the registry as clos
     business_fact_key: "Brand New Fact",
     business_fact_type: "string",
     unit: null,
+    requirement_text: "יש לצרף מסמך בדיקה תקף",
   }], {}, { facts: [] });
 
   assert.equal(output.requirementFactKeys["new-r"], "brand_new_fact");
   assert.deepEqual(output.facts.brand_new_fact, {
+    title_he: "יש לצרף מסמך בדיקה תקף",
+    description_he: "יש לצרף מסמך בדיקה תקף",
     business_fact_type: "string",
     unit: null,
     value: null,
@@ -55,6 +58,37 @@ test("creates missing facts dynamically instead of treating the registry as clos
     source: null,
     updated_at: null,
   });
+});
+
+test("preserves Hebrew labels and fills missing labels from a requirement", () => {
+  const output = ensureBusinessFacts([{
+    requirement_id: "r-he",
+    requirement_target: "business_fact",
+    business_fact_key: "daily_diners",
+    business_fact_type: "number",
+    unit: "diners",
+    requirement_text: "The business must be able to serve the required number of diners.",
+    source_quote: "מספר הסועדים היומי שהעסק מסוגל לשרת",
+  }], {
+    daily_diners: {
+      business_fact_type: "number",
+      unit: "diners",
+      value: 500,
+      status: "known",
+    },
+    existing_label: {
+      title_he: "כותרת עברית קיימת",
+      description_he: "תיאור עברי קיים",
+      business_fact_type: "boolean",
+      value: true,
+      status: "known",
+    },
+  }, { facts: [] });
+
+  assert.equal(output.facts.daily_diners.title_he, "מספר הסועדים היומי שהעסק מסוגל לשרת");
+  assert.equal(output.facts.daily_diners.description_he, "מספר הסועדים היומי שהעסק מסוגל לשרת");
+  assert.equal(output.facts.existing_label.title_he, "כותרת עברית קיימת");
+  assert.equal(output.facts.existing_label.description_he, "תיאור עברי קיים");
 });
 
 test("marks conflicting aliases for review instead of guessing a value", () => {

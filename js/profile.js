@@ -1,4 +1,11 @@
-import { FACT_STATUS, inputKindForFact, parseFactInput } from "./fact-values.js";
+import {
+  FACT_STATUS,
+  formatFactOption,
+  formatFactType,
+  formatFactUnit,
+  inputKindForFact,
+  parseFactInput,
+} from "./fact-values.js";
 import { supabase } from "./supabase.js";
 
 const message = document.querySelector("#profile-message");
@@ -20,7 +27,8 @@ function setMessage(state, icon, text) {
 }
 
 function labelFor(key) {
-  return registryByKey.get(key)?.description_he || key.replaceAll("_", " ");
+  const fact = profile?.business_facts?.[key];
+  return fact?.title_he || fact?.description_he || registryByKey.get(key)?.description_he || "נתון עסק נוסף";
 }
 
 function createInput(key, fact) {
@@ -35,7 +43,9 @@ function createInput(key, fact) {
   } else if (kind === "select" && registryFact?.allowed_values?.length) {
     input = document.createElement("select");
     input.append(new Option("בחרו…", ""));
-    for (const option of registryFact.allowed_values) input.append(new Option(option, option));
+    for (const option of registryFact.allowed_values) {
+      input.append(new Option(formatFactOption(option), option));
+    }
     input.value = fact.value ?? "";
   } else {
     input = document.createElement("input");
@@ -84,7 +94,9 @@ function factCard(key, fact) {
   const heading = document.createElement("div"); heading.className = "fact-heading";
   const titleWrap = document.createElement("div");
   const title = document.createElement("h3"); title.textContent = labelFor(key);
-  const meta = document.createElement("p"); meta.className = "muted"; meta.textContent = `${fact.business_fact_type}${fact.unit ? ` · ${fact.unit}` : ""}`;
+  const typeText = formatFactType(fact.business_fact_type);
+  const unitText = formatFactUnit(fact.unit);
+  const meta = document.createElement("p"); meta.className = "muted"; meta.textContent = `${typeText}${unitText ? ` · ${unitText}` : ""}`;
   titleWrap.append(title, meta);
   const status = FACT_STATUS[fact.status] ?? FACT_STATUS.needs_review;
   const badge = document.createElement("span"); badge.className = "result-badge"; badge.dataset.status = fact.status; badge.textContent = `${status.icon} ${status.label}`;

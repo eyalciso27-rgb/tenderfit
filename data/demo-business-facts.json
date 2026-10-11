@@ -1,7 +1,11 @@
 {
   "bidder_system_relationship": {
+    "title_he": "זיקת המציע למערכת המוצעת",
+    "description_he": "האם המציע הוא יצרן המערכת או ספק מורשה בישראל",
     "business_fact_type": "enum",
+    "business_fact_type_he": "בחירה מרשימה",
     "unit": null,
+    "unit_he": null,
     "value": "authorized_supplier",
     "status": "known",
     "aliases": [],
@@ -9,8 +13,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "systems_installed_since_2023_count": {
+    "title_he": "מספר מערכות שהותקנו מאז 2023",
+    "description_he": "מספר מערכות מהסוג המוצע שסופקו והוקמו מאז 1.1.2023",
     "business_fact_type": "number",
+    "business_fact_type_he": "מספר",
     "unit": "systems",
+    "unit_he": "מערכות",
     "value": 8,
     "status": "known",
     "aliases": [],
@@ -18,8 +26,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "qualifying_active_clients_count": {
+    "title_he": "מספר לקוחות פעילים שעומדים בסף",
+    "description_he": "מספר לקוחות פעילים שכל אחד עומד בספי נפח המסרים והדיוור שנקבעו",
     "business_fact_type": "number",
+    "business_fact_type_he": "מספר",
     "unit": "clients",
+    "unit_he": "לקוחות",
     "value": 6,
     "status": "known",
     "aliases": [],
@@ -27,8 +39,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "simultaneous_sms_throughput": {
+    "title_he": "קצב הפצת SMS בו-זמנית",
+    "description_he": "יכולת תעבורה בו-זמנית של מסרוני SMS",
     "business_fact_type": "number",
+    "business_fact_type_he": "מספר",
     "unit": "SMS",
+    "unit_he": "מסרונים",
     "value": 1500,
     "status": "known",
     "aliases": [],
@@ -36,8 +52,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "supports_sms_all_israel_and_international_carriers": {
+    "title_he": "תמיכה בכל מפעילי הסלולר בארץ ובחו״ל",
+    "description_he": "ממשק למשלוח SMS בישראל ובחו\"ל מול ספקי התקשורת הרלוונטיים",
     "business_fact_type": "boolean",
+    "business_fact_type_he": "כן / לא",
     "unit": null,
+    "unit_he": null,
     "value": true,
     "status": "known",
     "aliases": [],
@@ -45,8 +65,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "registered_entity_in_israel": {
+    "title_he": "תאגיד רשום בישראל כדין",
+    "description_he": "המציע הוא תאגיד רשום בישראל כדין",
     "business_fact_type": "boolean",
+    "business_fact_type_he": "כן / לא",
     "unit": null,
+    "unit_he": null,
     "value": true,
     "status": "known",
     "aliases": [
@@ -56,8 +80,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "required_legal_licenses_valid": {
+    "title_he": "תוקף רישיונות והיתרים לפי דין",
+    "description_he": "כל הרישיונות/ההיתרים/ההרשאות הנדרשים לפי דין תקפים",
     "business_fact_type": "boolean",
+    "business_fact_type_he": "כן / לא",
     "unit": null,
+    "unit_he": null,
     "value": true,
     "status": "known",
     "aliases": [],
@@ -65,8 +93,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "public_entities_transactions_compliant": {
+    "title_he": "עמידה בחוק עסקאות גופים ציבוריים",
+    "description_he": "עמידה בדרישות חוק עסקאות גופים ציבוריים",
     "business_fact_type": "boolean",
+    "business_fact_type_he": "כן / לא",
     "unit": null,
+    "unit_he": null,
     "value": true,
     "status": "known",
     "aliases": [],
@@ -74,8 +106,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "going_concern_warning_absent": {
+    "title_he": "היעדר הערת עסק חי בדוחות כספיים",
+    "description_he": "אין אזהרת עסק חי בדוחות הכספיים המבוקרים לשתי שנות המס האחרונות",
     "business_fact_type": "boolean",
+    "business_fact_type_he": "כן / לא",
     "unit": null,
+    "unit_he": null,
     "value": true,
     "status": "known",
     "aliases": [],
@@ -83,8 +119,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "maximum_supported_attachment_size_mb": {
+    "title_he": "גודל קובץ מצורף מרבי",
+    "description_he": "גודל קובץ מצורף מרבי שנתמך",
     "business_fact_type": "number",
+    "business_fact_type_he": "מספר",
     "unit": "MB",
+    "unit_he": "מגה־בייט",
     "value": 25,
     "status": "known",
     "aliases": [],
@@ -92,8 +132,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "supports_monthly_and_yearly_reports": {
+    "title_he": "הפקת דוחות חודשיים ושנתיים",
+    "description_he": "הפקת דוחות חודשיים ושנתיים",
     "business_fact_type": "boolean",
+    "business_fact_type_he": "כן / לא",
     "unit": null,
+    "unit_he": null,
     "value": true,
     "status": "known",
     "aliases": [],
@@ -101,8 +145,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "supports_adaptive_sms_length_per_operator": {
+    "title_he": "התאמת אורך SMS לפי מפעיל",
+    "description_he": "התאמת אורך SMS לכל מפעיל סלולרי",
     "business_fact_type": "boolean",
+    "business_fact_type_he": "כן / לא",
     "unit": null,
+    "unit_he": null,
     "value": true,
     "status": "known",
     "aliases": [],
@@ -110,8 +158,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "supports_text_to_voice_conversion_kosher_phones": {
+    "title_he": "המרת טקסט לקול לטלפונים כשרים",
+    "description_he": "המרת הודעת טקסט להודעה קולית והפצה לטלפונים כשרים לפי ניסוח המקור",
     "business_fact_type": "boolean",
+    "business_fact_type_he": "כן / לא",
     "unit": null,
+    "unit_he": null,
     "value": true,
     "status": "known",
     "aliases": [],
@@ -119,8 +171,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "supports_continuous_chat": {
+    "title_he": "ניהול שיח מתמשך ב-WhatsApp",
+    "description_he": "ניהול שיח מתמשך עם הנמען בערוץ WhatsApp",
     "business_fact_type": "boolean",
+    "business_fact_type_he": "כן / לא",
     "unit": null,
+    "unit_he": null,
     "value": true,
     "status": "known",
     "aliases": [],
@@ -128,8 +184,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "supports_smtp_interface": {
+    "title_he": "תמיכה בממשק SMTP",
+    "description_he": "תמיכה בממשק SMTP להפצת הודעות",
     "business_fact_type": "boolean",
+    "business_fact_type_he": "כן / לא",
     "unit": null,
+    "unit_he": null,
     "value": true,
     "status": "known",
     "aliases": [],
@@ -137,8 +197,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "supports_api_rest_ws_soap": {
+    "title_he": "ממשקי API (REST/SOAP/WS)",
+    "description_he": "API התומך REST/WS/SOAP לפי דרישות המכרז",
     "business_fact_type": "boolean",
+    "business_fact_type_he": "כן / לא",
     "unit": null,
+    "unit_he": null,
     "value": true,
     "status": "known",
     "aliases": [],
@@ -146,8 +210,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "food_service_avg_daily_diners_experience": {
+    "title_he": "ממוצע סועדים יומי בניסיון בהסעדה",
+    "description_he": "היקף סועדים יומי ממוצע בניסיון בהפעלת מערך הסעדה",
     "business_fact_type": "number",
+    "business_fact_type_he": "מספר",
     "unit": "diners",
+    "unit_he": "סועדים",
     "value": 700,
     "status": "known",
     "aliases": [],
@@ -155,8 +223,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "food_service_experience_start_date": {
+    "title_he": "מועד תחילת ניסיון בהפעלת הסעדה",
+    "description_he": "מועד תחילת ניסיון רלוונטי בהפעלת מערכי הסעדה לצורך ניקוד איכות",
     "business_fact_type": "date",
+    "business_fact_type_he": "תאריך",
     "unit": null,
+    "unit_he": null,
     "value": "2019-01-01",
     "status": "known",
     "aliases": [],
@@ -164,8 +236,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "simultaneous_food_service_sites_count": {
+    "title_he": "מספר אתרי הסעדה בו-זמנית",
+    "description_he": "מספר אתרי הסעדה שהופעלו בו-זמנית בתקופה הרלוונטית",
     "business_fact_type": "number",
+    "business_fact_type_he": "מספר",
     "unit": "sites",
+    "unit_he": "אתרים",
     "value": 3,
     "status": "known",
     "aliases": [],
@@ -173,8 +249,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "simultaneous_food_service_total_daily_diners": {
+    "title_he": "סה״כ סועדים יומיים באתרים בו-זמנית",
+    "description_he": "היקף סועדים יומי מצטבר באתרים שהופעלו בו-זמנית",
     "business_fact_type": "number",
+    "business_fact_type_he": "מספר",
     "unit": "diners",
+    "unit_he": "סועדים",
     "value": 1400,
     "status": "known",
     "aliases": [],
@@ -182,8 +262,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "food_service_reference_clients_count": {
+    "title_he": "מספר לקוחות ממליצים להסעדה",
+    "description_he": "מספר לקוחות ממליצים רלוונטיים לשירותי הסעדה",
     "business_fact_type": "number",
+    "business_fact_type_he": "מספר",
     "unit": "clients",
+    "unit_he": "לקוחות",
     "value": 5,
     "status": "known",
     "aliases": [],
@@ -191,8 +275,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "dairy_kitchen_daily_diners": {
+    "title_he": "סועדים יומיים במטבח חלבי",
+    "description_he": "היקף סועדים יומי בניסיון בהפעלת מטבח חלבי",
     "business_fact_type": "number",
+    "business_fact_type_he": "מספר",
     "unit": "diners",
+    "unit_he": "סועדים",
     "value": 450,
     "status": "known",
     "aliases": [],
@@ -200,8 +288,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "dairy_kitchen_experience_years": {
+    "title_he": "שנות ניסיון במטבח חלבי",
+    "description_he": "מספר שנות ניסיון בהפעלת מטבח חלבי",
     "business_fact_type": "number",
+    "business_fact_type_he": "מספר",
     "unit": "years",
+    "unit_he": "שנים",
     "value": 6,
     "status": "known",
     "aliases": [],
@@ -209,8 +301,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "refreshment_services_annual_value": {
+    "title_he": "היקף שנתי של שירותי כיבוד",
+    "description_he": "היקף שנתי של שירותי כיבוד ללשכות וחדרי דיונים באתר אחד",
     "business_fact_type": "currency",
+    "business_fact_type_he": "מטבע (ש״ח)",
     "unit": "ILS",
+    "unit_he": "ש״ח",
     "value": 400000,
     "status": "known",
     "aliases": [],
@@ -218,8 +314,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "head_chef_professional_profile": {
+    "title_he": "פרופיל מקצועי של שף ראשי",
+    "description_he": "ניסיון, מקצועיות ורקע של השף/טבח הראשי המוצע",
     "business_fact_type": "string",
+    "business_fact_type_he": "טקסט חופשי",
     "unit": null,
+    "unit_he": null,
     "value": "שף ראשי בעל 12 שנות ניסיון בהפעלת מטבחים מוסדיים ותעודת מקצוע סוג 5",
     "status": "known",
     "aliases": [],
@@ -227,8 +327,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "operations_manager_professional_profile": {
+    "title_he": "פרופיל מקצועי של מנהל תפעול",
+    "description_he": "ניסיון מקצועי של המנהל התפעולי בתחומי תברואה, בטיחות מזון, תפעול צוותים וחומרי גלם",
     "business_fact_type": "string",
+    "business_fact_type_he": "טקסט חופשי",
     "unit": null,
+    "unit_he": null,
     "value": "מנהל תפעול בעל תואר ראשון ו-9 שנות ניסיון בניהול בטיחות מזון, תברואה ותפעול אתרי הסעדה",
     "status": "known",
     "aliases": [],
@@ -236,8 +340,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "valid_kosher_certificate": {
+    "title_he": "תעודת כשרות תקפה מהרבנות הראשית",
+    "description_he": "תעודת כשרות תקפה מטעם הרבנות הראשית",
     "business_fact_type": "boolean",
+    "business_fact_type_he": "כן / לא",
     "unit": null,
+    "unit_he": null,
     "value": true,
     "status": "known",
     "aliases": [],
@@ -245,8 +353,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "valid_food_service_licenses": {
+    "title_he": "רישיונות תקפים להסעדה ומכירת מזון",
+    "description_he": "קיומם של רישיונות תקפים רלוונטיים לאספקת שירותי הסעדה ומכירת מזון",
     "business_fact_type": "boolean",
+    "business_fact_type_he": "כן / לא",
     "unit": null,
+    "unit_he": null,
     "value": true,
     "status": "known",
     "aliases": [],
@@ -254,8 +366,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "labor_law_convictions_last_3_years": {
+    "title_he": "הרשעות בדיני עבודה (3 שנים אחרונות)",
+    "description_he": "מספר הרשעות רלוונטיות בהפרת דיני עבודה בשלוש השנים האחרונות",
     "business_fact_type": "number",
+    "business_fact_type_he": "מספר",
     "unit": "convictions",
+    "unit_he": "הרשעות",
     "value": 0,
     "status": "known",
     "aliases": [],
@@ -263,8 +379,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "labor_law_financial_sanctions_last_3_years": {
+    "title_he": "עיצומים כספיים בדיני עבודה (3 שנים אחרונות)",
+    "description_he": "מספר עיצומים כספיים רלוונטיים בשל הפרות דיני עבודה בשלוש השנים האחרונות",
     "business_fact_type": "number",
+    "business_fact_type_he": "מספר",
     "unit": "sanctions",
+    "unit_he": "עיצומים",
     "value": 0,
     "status": "known",
     "aliases": [],
@@ -272,8 +392,12 @@
     "updated_at": "2026-10-11T09:00:00.000Z"
   },
   "labor_law_fines_last_year": {
+    "title_he": "קנסות בדיני עבודה (שנה אחרונה)",
+    "description_he": "מספר קנסות רלוונטיים בשנה האחרונה",
     "business_fact_type": "number",
+    "business_fact_type_he": "מספר",
     "unit": "fines",
+    "unit_he": "קנסות",
     "value": 0,
     "status": "known",
     "aliases": [],
