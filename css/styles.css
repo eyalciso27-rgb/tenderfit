@@ -522,6 +522,23 @@ input::placeholder {
   width: 100%;
 }
 
+.completed-tender-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+  padding: 1rem;
+  border: 1px solid var(--color-accent);
+  border-radius: 10px;
+  background: var(--color-mint);
+}
+
+.completed-tender-card h2,
+.completed-tender-card p {
+  margin-bottom: 0.25rem;
+}
+
 .wide-content {
   display: grid;
   gap: 1.25rem;
@@ -727,6 +744,12 @@ blockquote {
 
   .requirement-fields {
     grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .completed-tender-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
   }
 }
 

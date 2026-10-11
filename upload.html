@@ -43,6 +43,15 @@
 
         <button id="start-button" class="button button-primary full-button" type="button" disabled>התחל ניתוח</button>
         <button id="continue-button" class="button button-secondary full-button" type="button" hidden>המשך עיבוד קודם</button>
+
+        <aside id="completed-tender-card" class="completed-tender-card" hidden aria-labelledby="completed-tender-title">
+          <div>
+            <p class="eyebrow">מכרז שכבר נותח</p>
+            <h2 id="completed-tender-title"></h2>
+            <p id="completed-tender-number" class="muted"></p>
+          </div>
+          <a id="open-completed-tender" class="button button-secondary" href="tender.html">פתח את התוצאות</a>
+        </aside>
       </section>
     </main>
     <script type="module" src="js/upload.js"></script>

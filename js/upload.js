@@ -1,5 +1,6 @@
 import { supabase } from "./supabase.js";
 import { processTender } from "./pipeline.js";
+import { findLatestCompletedTender } from "./tender-selection.js";
 import { validateUploadFile } from "./upload-validation.js";
 
 const fileInput = document.querySelector("#pdf-file");
@@ -13,6 +14,10 @@ const statusBox = document.querySelector("#processing-status");
 const progressBar = document.querySelector("#progress-bar");
 const progressText = document.querySelector("#progress-text");
 const logoutButton = document.querySelector("#logout-button");
+const completedTenderCard = document.querySelector("#completed-tender-card");
+const completedTenderTitle = document.querySelector("#completed-tender-title");
+const completedTenderNumber = document.querySelector("#completed-tender-number");
+const openCompletedTender = document.querySelector("#open-completed-tender");
 let selectedFile = null;
 let completedRegions = new Set();
 let totalRegions = 0;
@@ -66,6 +71,21 @@ async function createTender(file) {
   return data.id;
 }
 
+async function showLatestCompletedTender() {
+  const { data, error } = await supabase
+    .from("tenders")
+    .select("id,title,tender_number,processing,updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(20);
+  if (error) return;
+  const tender = findLatestCompletedTender(data);
+  if (!tender) return;
+  completedTenderTitle.textContent = tender.title || "מכרז מעובד";
+  completedTenderNumber.textContent = tender.tender_number ? `מספר מכרז ${tender.tender_number}` : "";
+  openCompletedTender.href = `tender.html?id=${encodeURIComponent(tender.id)}`;
+  completedTenderCard.hidden = false;
+}
+
 function progress(event) {
   const labels = { upload: "מכין את המסמך", map: "ממפה את המכרז", metadata: "מחלץ פרטי מכרז", extract: "מחלץ דרישות", validate: "בודק ומאחד דרישות" };
   const bases = { upload: 10, map: 22, metadata: 22, extract: 38, validate: 92 };
@@ -112,10 +132,14 @@ continueButton.addEventListener("click", () => run(continueButton.dataset.tender
 logoutButton.addEventListener("click", async () => { await supabase.auth.signOut(); window.location.replace("index.html"); });
 
 const { data: sessionData } = await supabase.auth.getSession();
-if (!sessionData.session) window.location.replace("index.html");
-const activeTender = localStorage.getItem("tenderfit.activeTender");
-if (activeTender) {
-  continueButton.hidden = false;
-  continueButton.dataset.tenderId = activeTender;
-  setStatus("ready", "נמצא עיבוד קודם. אפשר להמשיך מאותה נקודה.", 0);
+if (!sessionData.session) {
+  window.location.replace("index.html");
+} else {
+  await showLatestCompletedTender();
+  const activeTender = localStorage.getItem("tenderfit.activeTender");
+  if (activeTender) {
+    continueButton.hidden = false;
+    continueButton.dataset.tenderId = activeTender;
+    setStatus("ready", "נמצא עיבוד קודם. אפשר להמשיך מאותה נקודה.", 0);
+  }
 }
