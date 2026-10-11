@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Checklist להכנת ההגשה למכרז ב-TenderFit">
+    <title>TenderFit | Checklist להגשה</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand brand-link" href="upload.html"><span class="brand-mark" aria-hidden="true">TF</span><span>TenderFit</span></a>
+      <nav class="header-actions"><a class="button button-text" href="profile.html">פרטי העסק</a><a class="button button-text" href="upload.html">מכרז חדש</a><button id="logout-button" class="button button-text" type="button">התנתק</button></nav>
+    </header>
+    <main class="wide-content checklist-page">
+      <div id="page-message" class="status-box" data-state="working" aria-live="polite"><span aria-hidden="true">…</span><span>טוען את ה-Checklist…</span></div>
+      <section id="checklist-content" hidden>
+        <a id="back-to-tender" class="button button-text back-link" href="tender.html">→ חזרה למכרז</a>
+
+        <article class="card checklist-hero" aria-labelledby="checklist-title">
+          <div>
+            <p class="eyebrow">הכנת ההגשה</p>
+            <h1 id="checklist-title">Checklist למכרז</h1>
+            <p id="checklist-tender-title" class="checklist-tender-name"></p>
+            <p class="muted">מועד הגשה: <bdi id="checklist-deadline"></bdi></p>
+          </div>
+          <div class="chip-row" aria-label="מצב המכרז">
+            <span class="decision-badge" data-decision="go">✓ Go</span>
+            <span id="checklist-urgency" class="urgency-badge"></span>
+          </div>
+        </article>
+
+        <section class="card checklist-progress-card" aria-labelledby="progress-title">
+          <div class="checklist-progress-heading">
+            <div><p class="eyebrow">התקדמות</p><h2 id="progress-title">הכנת המסמכים</h2></div>
+            <strong id="progress-percent" class="checklist-progress-percent"><bdi>0%</bdi></strong>
+          </div>
+          <div id="checklist-progress" class="progress-track checklist-progress-track" role="progressbar" aria-label="אחוז השלמת ה-Checklist" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+          <p id="progress-count" class="muted"><bdi>0 מתוך 0</bdi> פריטים הושלמו</p>
+        </section>
+
+        <p id="checklist-feedback" class="inline-save-message checklist-feedback" aria-live="polite"></p>
+        <section aria-labelledby="items-title">
+          <header class="section-heading checklist-items-heading"><div><p class="eyebrow">פריטים להגשה</p><h2 id="items-title">מה צריך להכין?</h2></div></header>
+          <div id="checklist-empty" class="card empty-state" hidden>לא נמצאו במסמך דרישות להגשת מסמכים.</div>
+          <div id="checklist-mobile-list" class="checklist-mobile-list"></div>
+          <div id="checklist-table-wrap" class="card checklist-table-wrap">
+            <table class="checklist-table">
+              <thead><tr><th scope="col">בוצע</th><th scope="col">פריט</th><th scope="col">סטטוס</th><th scope="col">מקור</th></tr></thead>
+              <tbody id="checklist-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+        <a id="bottom-back-to-tender" class="button button-secondary checklist-return" href="tender.html">חזרה לפרטי המכרז</a>
+      </section>
+    </main>
+    <script type="module" src="js/checklist.js"></script>
+  </body>
+</html>

@@ -29,6 +29,7 @@ import {
 } from "../lib/tender-response.js";
 import { buildAiErrorReport, buildDecisionUpdate } from "../lib/m4-actions.js";
 import { buildFitAnalysisDisplaySummary, userFacingAutomationText } from "../lib/fit-analysis.js";
+import { checklistForGo } from "../lib/checklist.js";
 
 const params = new URLSearchParams(location.search);
 const tenderId = params.get("id");
@@ -434,12 +435,19 @@ function renderDecision() {
       : button.dataset.decision === "go" ? "Go" : "No-Go";
   }
   document.querySelector("#decision-updated-at").textContent = formatDecisionTime(tender.decision_updated_at);
+  const checklistLink = document.querySelector("#checklist-link");
+  const checklistAvailable = decision === "go" && Array.isArray(tender.checklist);
+  checklistLink.toggleAttribute("href", checklistAvailable);
+  if (checklistAvailable) checklistLink.href = `checklist.html?id=${encodeURIComponent(tender.id)}`;
+  checklistLink.setAttribute("aria-disabled", String(!checklistAvailable));
+  checklistLink.tabIndex = checklistAvailable ? 0 : -1;
 }
 
 async function saveDecision(value) {
-  if (decisionSaving || tender.decision === value) return;
+  if (decisionSaving || (tender.decision === value && (value !== "go" || Array.isArray(tender.checklist)))) return;
   const update = buildDecisionUpdate(value);
   if (!update) return;
+  if (value === "go") update.checklist = checklistForGo(tender.checklist, tender.requirements);
   decisionSaving = true;
   const buttons = [...document.querySelectorAll(".decision-button")];
   const feedback = document.querySelector("#decision-feedback");
@@ -451,7 +459,7 @@ async function saveDecision(value) {
       .from("tenders")
       .update(update)
       .eq("id", tender.id)
-      .select("decision, decision_updated_at, updated_at")
+      .select("decision, decision_updated_at, checklist, updated_at")
       .single();
     if (error) throw new Error("שמירת ההחלטה נכשלה.");
     Object.assign(tender, data);
@@ -465,6 +473,20 @@ async function saveDecision(value) {
     decisionSaving = false;
     for (const button of buttons) button.disabled = false;
   }
+}
+
+async function ensureChecklistForGo() {
+  if (tender.decision !== "go" || Array.isArray(tender.checklist)) return;
+  const updatedAt = new Date().toISOString();
+  const checklist = checklistForGo(tender.checklist, tender.requirements);
+  const { data, error } = await supabase
+    .from("tenders")
+    .update({ checklist, updated_at: updatedAt })
+    .eq("id", tender.id)
+    .select("checklist, updated_at")
+    .single();
+  if (error) throw new Error("יצירת ה-Checklist נכשלה.");
+  Object.assign(tender, data);
 }
 
 function reportAction(requirement) {
@@ -977,6 +999,7 @@ async function load() {
   const registry = await registryResponse.json();
   registryByKey = new Map((registry.facts ?? []).map((item) => [item.business_fact_key, item]));
   await refreshData();
+  await ensureChecklistForGo();
   const signedUrlResult = await supabase.storage.from("tender-pdfs").createSignedUrl(tender.pdf_path, 3600);
   if (!signedUrlResult.error) sourcePdfUrl = signedUrlResult.data?.signedUrl ?? null;
   renderTenderHeader();
@@ -989,6 +1012,9 @@ document.querySelector("#logout-button").addEventListener("click", async () => {
 compareButton.addEventListener("click", compare);
 document.querySelector("#decision-go").addEventListener("click", () => saveDecision("go"));
 document.querySelector("#decision-no-go").addEventListener("click", () => saveDecision("no_go"));
+document.querySelector("#checklist-link").addEventListener("click", (event) => {
+  if (event.currentTarget.getAttribute("aria-disabled") === "true") event.preventDefault();
+});
 document.querySelector("#error-report-form").addEventListener("submit", submitErrorReport);
 document.querySelector("#error-report-cancel").addEventListener("click", () => {
   activeReportRequirement = null;
