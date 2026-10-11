@@ -66,3 +66,17 @@ test("Fit Analysis semantic validation prevents changing code statuses", () => {
   assert.match(invalid.errors.join(" "), /expected_met/);
   assert.match(invalid.errors.join(" "), /unknown_requirement/);
 });
+
+test("Fit Analysis semantic validation rejects advisory language", () => {
+  const output = {
+    summary: "מומלץ לבדוק את תנאי הסף.",
+    strengths: [],
+    gaps: [],
+    missing_information: [],
+    review_priorities: [],
+    important_note: "הסבר בלבד, אינו המלצה.",
+  };
+  const validation = validateFitAnalysisSemantics(output, tender().results);
+  assert.equal(validation.valid, false);
+  assert.ok(validation.errors.includes("prohibited_recommendation_language"));
+});

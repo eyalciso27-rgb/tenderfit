@@ -1,0 +1,9 @@
+{
+  "version": "f18-v1.1",
+  "runtime_files": {
+    "system_instructions.txt": "4b9b14119eff940b3934282bd529682a513807543610cd8d0b8f072d4ffcbafc",
+    "user_prompt.txt": "0593cc08561b6a898cf4d1d0a889c4484e49edb5d8e453dd98e881ab51d14ec1",
+    "structured_output_schema.json": "114997efd5785949755cefd68dcefaa18d913c5710c6bee2af27dfef26800408",
+    "settings.json": "282524f5cade8f909a980e2ba3ee27fe23cf7caa22cc5d90a3629787534158b2"
+  }
+}

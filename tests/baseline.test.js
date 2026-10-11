@@ -18,13 +18,15 @@ test("all frozen AI runtime files match their SHA-256 manifests", async () => {
   const extractor = await loadBaseline("extractor-v3.5");
   const extractorProduction = await loadBaseline("extractor-v3.6");
   const metadata = await loadBaseline("metadata-f15");
-  const fitAnalysis = await loadBaseline("fit-f18");
+  const fitAnalysisV10 = await loadBaseline("fit-f18");
+  const fitAnalysis = await loadBaseline("fit-f18-v1.1");
 
   assert.equal(mapper.manifest.version, "v1.2");
   assert.equal(extractor.manifest.version, "v3.5");
   assert.equal(extractorProduction.manifest.version, "v3.6");
   assert.equal(metadata.manifest.version, "f15-v1.0");
-  assert.equal(fitAnalysis.manifest.version, "f18-v1.0");
+  assert.equal(fitAnalysisV10.manifest.version, "f18-v1.0");
+  assert.equal(fitAnalysis.manifest.version, "f18-v1.1");
 });
 
 test("baseline verification rejects a modified runtime file", async (context) => {

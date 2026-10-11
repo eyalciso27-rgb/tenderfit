@@ -1101,7 +1101,7 @@ async function saveMigratedBusinessFacts(supabase, userId, businessFacts) {
   if (error) throw new ApiError(500, "database_error", "לא הצלחנו לנקות placeholders ישנים מפרופיל העסק.");
 }
 
-const FIT_COMPONENT = "fit-f18-v1.0";
+const FIT_COMPONENT = "fit-f18-v1.1";
 
 function fitUsageDetails(tender, baseline) {
   return { component: FIT_COMPONENT, model: baseline.settings.model, pdf_hash: tender.pdf_hash };
