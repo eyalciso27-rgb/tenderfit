@@ -1160,14 +1160,14 @@ async function startFitAnalysis(supabase, tender, businessFacts, baseline) {
       details: fitUsageDetails(tender, baseline),
     });
     if (error instanceof ApiError || error instanceof BudgetExceededError) throw error;
-    throw new ApiError(502, "fit_submit_failed", "תוצאות הקוד נשמרו, אבל שליחת הסבר ה־AI נכשלה.");
+    throw new ApiError(502, "fit_submit_failed", "תוצאות הבדיקה האוטומטית נשמרו, אבל שליחת הסבר ה־AI נכשלה.");
   }
 }
 
 async function pollFitAnalysis(supabase, tender, baseline) {
   const current = stepRecord(tender, "compare");
   if (!current.interaction_id || !current.sent_at) {
-    throw new ApiError(500, "fit_state_invalid", "תוצאות הקוד נשמרו, אבל מצב הסבר ה־AI אינו תקין.");
+    throw new ApiError(500, "fit_state_invalid", "תוצאות הבדיקה האוטומטית נשמרו, אבל מצב הסבר ה־AI אינו תקין.");
   }
   const interaction = await createGeminiClient().interactions.get(current.interaction_id);
   if (PENDING_INTERACTION_STATUSES.has(interaction.status)) {
@@ -1177,7 +1177,7 @@ async function pollFitAnalysis(supabase, tender, baseline) {
         interaction,
         details: fitUsageDetails(tender, baseline),
       });
-      throw new ApiError(502, "fit_timeout", "תוצאות הקוד נשמרו, אבל הסבר ה־AI לא הסתיים בתוך 15 דקות.");
+      throw new ApiError(502, "fit_timeout", "תוצאות הבדיקה האוטומטית נשמרו, אבל הסבר ה־AI לא הסתיים בתוך 15 דקות.");
     }
     return { tender, waiting: true, data: waitingData(tender, interaction, current.sent_at, { phase: "fit_analysis" }) };
   }
@@ -1187,7 +1187,7 @@ async function pollFitAnalysis(supabase, tender, baseline) {
       interaction,
       details: fitUsageDetails(tender, baseline),
     });
-    throw new ApiError(502, "fit_failed", "תוצאות הקוד נשמרו, אבל הסבר ה־AI נכשל.");
+    throw new ApiError(502, "fit_failed", "תוצאות הבדיקה האוטומטית נשמרו, אבל הסבר ה־AI נכשל.");
   }
 
   try {
@@ -1195,7 +1195,7 @@ async function pollFitAnalysis(supabase, tender, baseline) {
     const semantic = validateFitAnalysisSemantics(parsed, tender.results);
     if (!semantic.valid) {
       console.error("Fit Analysis semantic validation failed", { errors: semantic.errors });
-      throw new ApiError(502, "fit_semantics_invalid", "הסבר ה־AI לא תאם לתוצאות שחושבו בקוד.");
+      throw new ApiError(502, "fit_semantics_invalid", "הסבר ה־AI לא תאם לתוצאות הבדיקה האוטומטית.");
     }
     const completedAt = new Date().toISOString();
     const usage = await estimateGeminiCost(interaction.usage);
