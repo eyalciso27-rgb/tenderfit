@@ -40,10 +40,13 @@
         <section class="card comparison-overview" aria-labelledby="comparison-title">
           <header class="overview-heading">
             <div><p class="eyebrow">תמונת מצב</p><h2 id="comparison-title">התאמת הדרישות לעסק</h2></div>
-            <button id="compare-button" class="button button-secondary" type="button">בדוק שוב</button>
+            <div class="overview-actions">
+              <button id="compare-button" class="button button-secondary" type="button">עדכן את בדיקת ההתאמה</button>
+              <button id="fit-analysis-toggle" class="button button-text" type="button" aria-expanded="false" aria-controls="fit-analysis-card">הצג הסבר AI</button>
+            </div>
           </header>
           <div id="compare-message" class="status-box" data-state="working" aria-live="polite" hidden><span aria-hidden="true">…</span><span>משווה את הדרישות לנתוני העסק…</span></div>
-          <p id="analysis-stale-warning" class="inline-warning" role="status" hidden>! נתוני העסק השתנו מאז הבדיקה האחרונה. תוצאת המערכת עדיין ישנה; לחצו "בדוק שוב".</p>
+          <p id="analysis-stale-warning" class="inline-warning" role="status" hidden>! נתוני העסק השתנו מאז הבדיקה האחרונה. תוצאת המערכת עדיין ישנה; לחצו „עדכן את בדיקת ההתאמה”.</p>
           <div class="result-counters" aria-label="מוני תוצאות">
             <div data-status="met"><span aria-hidden="true">✓</span><strong id="met-count">0</strong><small>עומד</small></div>
             <div data-status="gap"><span aria-hidden="true">✕</span><strong id="gap-count">0</strong><small>פער</small></div>
@@ -57,9 +60,7 @@
           </div>
         </section>
 
-        <div class="tender-dashboard">
-
-        <section id="fit-analysis-card" class="card fit-analysis-card" aria-labelledby="fit-analysis-title">
+        <section id="fit-analysis-card" class="card fit-analysis-card" aria-labelledby="fit-analysis-title" hidden>
           <header class="fit-analysis-heading">
             <div><p class="eyebrow">הסבר AI</p><h2 id="fit-analysis-title">מה משמעות התוצאות?</h2></div>
             <span class="chip">מסביר בלבד</span>
@@ -69,34 +70,41 @@
           <p class="comparison-disclaimer">התוצאה מסבירה את בדיקת ההתאמה האוטומטית בלבד. היא אינה ייעוץ משפטי ואינה החלטת Go/No-Go.</p>
         </section>
 
-        <section id="tender-facts-section" class="missing-facts-section" aria-labelledby="tender-facts-title" hidden>
-          <header class="section-heading">
-            <div><p class="eyebrow">השלמה ועריכה</p><h2 id="tender-facts-title">נתונים להשוואה למכרז הזה</h2></div>
-            <span id="tender-facts-count" class="review-chip"></span>
-          </header>
-          <p class="muted">השלמה ועריכה של נתוני העסק המשמשים להשוואת הדרישות במכרז הזה. שמירת נתון מעדכנת את פרופיל העסק; לאחר השמירה לחצו "בדוק שוב".</p>
-          <div id="tender-facts-list" class="missing-facts-list"></div>
-        </section>
+        <div class="tender-dashboard">
 
-        <section id="source-tables-section" class="source-tables-section" aria-labelledby="source-tables-title" hidden>
-          <header class="section-heading"><div><p class="eyebrow">מקור טבלאי</p><h2 id="source-tables-title">פריטי טבלאות שחולצו</h2></div><span id="source-tables-count" class="review-chip"></span></header>
+        <details id="source-tables-section" class="source-tables-section advanced-source-tables" hidden>
+          <summary><span><span class="eyebrow">תצוגה מתקדמת</span><strong id="source-tables-title">טבלאות המקור שחולצו</strong></span><span id="source-tables-count" class="review-chip"></span></summary>
           <p class="muted">הפריטים מוצגים לפי הטבלה, השורה והעמודה שנשמרו בחילוץ. כל פריט טבלה הוא דרישה אטומית שנבדקת ונכללת בהתאמת הדרישות לעסק (מופיע גם במונים וברשימת הדרישות). הקישור לעמוד המקור מציג את הטבלה המקורית במלואה.</p>
           <div id="source-tables-list" class="source-tables-list"></div>
-        </section>
+        </details>
 
         <section class="requirements-section" aria-labelledby="requirements-title">
-          <header class="section-heading"><div><p class="eyebrow">עם עקיבות למקור</p><h2 id="requirements-title">דרישות המכרז</h2></div><span id="manual-review-count" class="review-chip"></span></header>
+          <header class="section-heading"><div><p class="eyebrow">סביבת עבודה</p><h2 id="requirements-title">טיפול בדרישות המכרז</h2></div><span id="manual-review-count" class="review-chip"></span></header>
+          <section class="workflow-controls" aria-labelledby="workflow-progress-title">
+            <div class="workflow-progress-copy"><strong id="workflow-progress-title">התקדמות בטיפול</strong><span id="workflow-progress-count">0 מתוך 0 משימות טופלו</span></div>
+            <div class="workflow-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"><span id="workflow-progress-bar"></span></div>
+            <button id="next-requirement-button" class="button button-primary" type="button">למשימה הבאה</button>
+          </section>
+          <div id="workflow-views" class="workspace-tabs" role="group" aria-label="תצוגת משימות">
+            <button class="workspace-tab is-active" type="button" data-workflow-view="attention">לטיפול עכשיו</button>
+            <button class="workspace-tab" type="button" data-workflow-view="all">כל הדרישות</button>
+            <button class="workspace-tab" type="button" data-workflow-view="answered">נבדקו או נענו</button>
+          </div>
+          <details class="advanced-filters">
+            <summary>סינון מתקדם לפי תוצאה</summary>
           <div id="result-filters" class="filter-row" role="group" aria-label="סינון דרישות לפי תוצאה">
-            <button class="filter-chip is-active" type="button" data-filter="all">הכול</button>
+            <button class="filter-chip is-active" type="button" data-filter="all">ללא סינון</button>
             <button class="filter-chip filter-chip-critical" type="button" data-filter="critical">⚠ תנאי סף קריטיים</button>
             <button class="filter-chip" type="button" data-filter="gap">✕ פער</button>
             <button class="filter-chip" type="button" data-filter="missing">? חסר מידע</button>
             <button class="filter-chip" type="button" data-filter="review">! דורש בדיקה</button>
             <button class="filter-chip" type="button" data-filter="met">✓ עומד</button>
           </div>
+          </details>
           <div id="empty-state" class="card empty-state" hidden>⚠ לא אותרו דרישות. בדוק את המסמך</div>
           <div id="filter-empty" class="card empty-state" hidden>אין דרישות בתוצאה שנבחרה.</div>
           <div id="requirements-list" class="requirements-list"></div>
+          <button id="show-more-requirements" class="button button-secondary show-more-requirements" type="button" hidden>הצג עוד משימות</button>
         </section>
 
         <section class="tender-metadata-sections" aria-label="מידע מסכם על המכרז">

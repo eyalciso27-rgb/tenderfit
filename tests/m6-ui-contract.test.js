@@ -56,3 +56,18 @@ test("existing M6 screens use the approved mobile shell and dashboard layout", (
   assert.match(styles, /grid-template-columns: minmax\(0, 1fr\) 340px/);
   assert.match(styles, /bottom: 68px/);
 });
+
+test("the M6 tender page is a guided workspace instead of two long duplicate reports", () => {
+  assert.match(tenderHtml, /עדכן את בדיקת ההתאמה/);
+  assert.match(tenderHtml, /id="fit-analysis-toggle"/);
+  assert.match(tenderHtml, /id="workflow-progress-count"/);
+  assert.match(tenderHtml, /data-workflow-view="attention"/);
+  assert.match(tenderHtml, /למשימה הבאה/);
+  assert.match(tenderHtml, /id="show-more-requirements"/);
+  assert.doesNotMatch(tenderHtml, /נתונים להשוואה למכרז הזה/);
+  assert.doesNotMatch(tenderScript, /לסעיף הזה אין Business Fact חוזר/);
+  assert.match(tenderScript, /מענה למכרז הזה בלבד/);
+  assert.match(tenderScript, /נדרשת תשובתך/);
+  assert.match(tenderScript, /compareButton\.addEventListener\("click", \(\) => compare\(\)\)/);
+  assert.match(styles, /M6 guided tender workspace/);
+});

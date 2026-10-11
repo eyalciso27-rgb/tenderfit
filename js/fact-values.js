@@ -465,7 +465,8 @@ export function translateRequirementType(type) {
 
 export function translateCategory(category) {
   if (!category) return category;
-  return CATEGORY_TRANSLATIONS[String(category).trim().toLowerCase()] ?? category;
+  const normalized = String(category).trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return CATEGORY_TRANSLATIONS[normalized] ?? null;
 }
 
 

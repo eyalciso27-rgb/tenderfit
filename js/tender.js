@@ -31,6 +31,13 @@ import { buildAiErrorReport, buildDecisionUpdate } from "../lib/m4-actions.js";
 import { buildFitAnalysisDisplaySummary, userFacingAutomationText } from "../lib/fit-analysis.js";
 import { checklistForGo } from "../lib/checklist.js";
 import { normalizeTenderMetadata } from "../lib/tender-metadata.js";
+import {
+  WORKFLOW_GROUP_META,
+  WORKFLOW_VIEW,
+  atomicRequirementIds,
+  requirementWorkflow,
+  workflowProgress,
+} from "../lib/requirement-workflow.js";
 
 const params = new URLSearchParams(location.search);
 const tenderId = params.get("id");
@@ -38,11 +45,14 @@ const pageMessage = document.querySelector("#page-message");
 const content = document.querySelector("#tender-content");
 const compareMessage = document.querySelector("#compare-message");
 const compareButton = document.querySelector("#compare-button");
+const fitAnalysisToggle = document.querySelector("#fit-analysis-toggle");
 let tender = null;
 let profile = null;
 let currentUser = null;
 let registryByKey = new Map();
 let activeFilter = "all";
+let activeWorkflowView = WORKFLOW_VIEW.ATTENTION;
+let visibleRootLimit = 8;
 let sourcePdfUrl = null;
 let tenderResponseSaving = false;
 let decisionSaving = false;
@@ -61,7 +71,7 @@ function organizeDashboardLayout() {
     const element = dashboard.querySelector(selector);
     if (element) primary.append(element);
   }
-  for (const selector of ["#decision-card", "#tender-facts-section", "#fit-analysis-card", ".tender-metadata-sections"]) {
+  for (const selector of ["#decision-card", ".tender-metadata-sections"]) {
     const element = dashboard.querySelector(selector);
     if (element) sidebar.append(element);
   }
@@ -96,6 +106,13 @@ function setCompareMessage(state, icon, copy) {
   const textElement = document.createElement("span"); textElement.textContent = copy;
   compareMessage.append(iconElement, textElement);
   compareMessage.hidden = false;
+}
+
+function setFitAnalysisVisible(visible) {
+  const card = document.querySelector("#fit-analysis-card");
+  card.hidden = !visible;
+  fitAnalysisToggle.setAttribute("aria-expanded", String(visible));
+  fitAnalysisToggle.textContent = visible ? "הסתר הסבר AI" : "הצג הסבר AI";
 }
 
 function detailRow(label, value) {
@@ -335,9 +352,9 @@ async function saveFact(key, fact, input, messageElement, button) {
       staleWarning = ` ${staleError.message}`;
     }
     messageElement.dataset.state = "success";
-    messageElement.textContent = `✓ נשמר. לחצו "בדוק שוב" לעדכון ההתאמה.${staleWarning}`;
+    messageElement.textContent = `✓ נשמר לשימוש חוזר. לחצו „עדכן את בדיקת ההתאמה” לחישוב מחדש.${staleWarning}`;
     renderAll();
-    setCompareMessage("success", "✓", "הנתון נשמר בפרופיל. לחצו \"בדוק שוב\" כדי לחשב את התוצאות מחדש.");
+    setCompareMessage("success", "✓", "הנתון נשמר לשימוש חוזר. לחצו „עדכן את בדיקת ההתאמה” כדי לחשב את התוצאות מחדש.");
   } catch (error) {
     messageElement.dataset.state = "error";
     messageElement.textContent = error.message;
@@ -682,22 +699,53 @@ async function submitErrorReport(event) {
 
 const statusWeight = { gap: 0, missing: 1, review: 2, met: 3 };
 
+function workflowFor(requirement, childrenByParent) {
+  const result = resultFor(requirement);
+  const factKey = result.business_fact_key || requirement.business_fact_key;
+  return requirementWorkflow(
+    requirement,
+    result,
+    factKey ? profile.business_facts?.[factKey] : null,
+    responseFor(requirement),
+    !childrenByParent.has(requirement.requirement_id),
+  );
+}
+
+function workflowGroupForSubtree(requirement, childrenByParent) {
+  const matchingChild = (childrenByParent.get(requirement.requirement_id) ?? [])
+    .find((child) => subtreeMatches(child, childrenByParent));
+  return matchingChild
+    ? workflowGroupForSubtree(matchingChild, childrenByParent)
+    : workflowFor(requirement, childrenByParent).group;
+}
+
+function matchesWorkflowView(requirement, childrenByParent) {
+  const children = childrenByParent.get(requirement.requirement_id) ?? [];
+  if (children.length) return children.some((child) => matchesWorkflowView(child, childrenByParent));
+  const workflow = workflowFor(requirement, childrenByParent);
+  if (activeWorkflowView === WORKFLOW_VIEW.ATTENTION) return workflow.requiresAction;
+  if (activeWorkflowView === WORKFLOW_VIEW.ANSWERED) return !workflow.requiresAction && !workflow.informational;
+  return true;
+}
+
 function subtreeMatches(requirement, childrenByParent) {
+  const children = childrenByParent.get(requirement.requirement_id) ?? [];
+  if (children.length) return children.some((child) => subtreeMatches(child, childrenByParent));
+  if (!matchesWorkflowView(requirement, childrenByParent)) return false;
   if (activeFilter === "all") return true;
   if (activeFilter === "critical") {
-    if (requirement.is_critical) return true;
-    return (childrenByParent.get(requirement.requirement_id) ?? []).some((child) => subtreeMatches(child, childrenByParent));
+    return Boolean(requirement.is_critical);
   }
-  if (resultFor(requirement).status === activeFilter) return true;
-  return (childrenByParent.get(requirement.requirement_id) ?? []).some((child) => subtreeMatches(child, childrenByParent));
+  return resultFor(requirement).status === activeFilter;
 }
 
 function requirementCard(requirement, childrenByParent, ancestorIds = new Set()) {
   const result = resultFor(requirement);
   const customerResponse = responseFor(requirement);
-  const article = document.createElement("article"); article.className = "card requirement-card"; article.dataset.status = result.status;
+  const article = document.createElement("details"); article.className = "card requirement-card"; article.dataset.status = result.status;
+  article.dataset.requirementId = requirement.requirement_id;
   article.dataset.critical = String(Boolean(requirement.is_critical));
-  const header = document.createElement("header");
+  const header = document.createElement("summary");
   const chips = document.createElement("div"); chips.className = "chip-row";
   chips.append(resultBadge(result.status));
   if (requirement.is_critical) {
@@ -719,6 +767,11 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
   if (requirement.source_type === "table" || requirement.table_id) {
     const tableChip = document.createElement("span"); tableChip.className = "chip"; tableChip.textContent = "פריט טבלה"; chips.append(tableChip);
   }
+  const workflow = workflowFor(requirement, childrenByParent);
+  const actionChip = document.createElement("span");
+  actionChip.className = "chip chip-workflow";
+  actionChip.textContent = WORKFLOW_GROUP_META[workflow.group].label;
+  chips.append(actionChip);
   const categoryLabel = translateCategory(requirement.category);
   const typeLabel = translateRequirementType(requirement.requirement_type);
   for (const value of [categoryLabel, typeLabel]) {
@@ -729,7 +782,7 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
   const title = document.createElement("h3"); title.textContent = translateToHebrew(requirement.requirement_text);
   header.append(chips, title); article.append(header);
 
-  const factKey = result.business_fact_key;
+  const factKey = result.business_fact_key || requirement.business_fact_key;
   const fact = factKey ? profile.business_facts?.[factKey] : null;
   const tenderValue = [
     requirement.comparison_operator,
@@ -742,27 +795,55 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
     : null;
   const dataComparison = document.createElement("div");
   dataComparison.className = "requirement-data-comparison";
-  dataComparison.append(
-    informationPanel("מה המכרז דורש", "מקור: מסמך המכרז", "tender-data-panel", [
+  const tenderPanel = informationPanel("מה המכרז דורש", "מקור: מסמך המכרז", "tender-data-panel", [
       ["ערך ותנאי", tenderValue || "לא צוין ערך מובנה"],
       ["תחולה", translateScope(requirement.scope)],
       ["תקופה", translatePeriod(requirement.period)],
-    ]),
-    informationPanel("מה ידוע על העסק", "מקור: פרופיל העסק", "business-data-panel", factKey ? [
+    ]);
+  let actionPanel;
+  const hasKnownFact = fact?.status === "known" && fact?.value !== null && fact?.value !== undefined && fact?.value !== "";
+  if (factKey) {
+    actionPanel = informationPanel(
+      hasKnownFact ? "נתון העסק" : "חסר נתון לצורך הבדיקה",
+      hasKnownFact ? "נשמר לשימוש חוזר" : "ניתן להשלים ולשמור לשימוש חוזר",
+      "business-data-panel",
+      hasKnownFact ? [
       ["שם הנתון", labelForFact(factKey)],
-      ["ערך בפרופיל", businessValue],
+      ["ערך העסק", businessValue],
       ["תחולה", fact?.scope],
       ["תקופה", fact?.period],
       ["בתוקף עד", fact?.valid_until],
-    ] : [], "לסעיף הזה אין Business Fact חוזר בפרופיל העסק."),
-  );
+      ] : [],
+      "הנתון עדיין לא הוזן. אפשר להשלים אותו כאן אם הוא מידע קבוע ושימושי על העסק.",
+    );
+  } else if (workflow.informational) {
+    actionPanel = informationPanel(
+      "לקריאה בלבד",
+      "מידע מתוך המכרז",
+      "response-data-panel",
+      [],
+      "זהו כלל ניקוד או מידע מסכם. אין צורך לשמור אותו בפרופיל העסק.",
+    );
+  } else {
+    actionPanel = informationPanel(
+      "נדרשת תשובתך",
+      "מענה למכרז הזה בלבד",
+      "response-data-panel",
+      [],
+      "הדרישה מתייחסת להתחייבות, למסמך או לפעולה במכרז הזה ואינה נבדקת אוטומטית מול נתוני העסק.",
+    );
+  }
+  dataComparison.append(tenderPanel, actionPanel);
   article.append(dataComparison);
 
   const comparison = document.createElement("section"); comparison.className = "requirement-comparison";
   const comparisonHeading = document.createElement("h4"); comparisonHeading.textContent = "תוצאת המערכת";
   comparison.append(comparisonHeading);
   comparison.append(detailRow("מצב", `${RESULT_STATUS[result.status]?.icon ?? "!"} ${RESULT_STATUS[result.status]?.label ?? "דורש בדיקה"}`));
-  comparison.append(detailRow("הסבר", translateToHebrew(result.explanation)));
+  const resultExplanation = !factKey && result.status === "review"
+    ? "המערכת אינה יכולה לקבוע עמידה בדרישה זו מתוך נתוני העסק. נדרש מענה שלך."
+    : translateToHebrew(result.explanation);
+  comparison.append(detailRow("הסבר", resultExplanation));
   article.append(comparison);
 
   if (customerResponse) {
@@ -789,7 +870,9 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
       article.append(editDetails);
     }
   }
-  if (!childrenByParent.has(requirement.requirement_id)) article.append(tenderResponseForm(requirement));
+  if (!childrenByParent.has(requirement.requirement_id)
+    && requirement.requirement_target !== "business_fact"
+    && !workflow.informational) article.append(tenderResponseForm(requirement));
 
   const fields = document.createElement("div"); fields.className = "requirement-fields";
   const fieldValues = [
@@ -840,9 +923,85 @@ function renderRequirements() {
   const { roots, childrenByParent } = organizeRequirements(requirements);
   const visibleRoots = roots.filter((item) => subtreeMatches(item, childrenByParent))
     .sort((first, second) => statusWeight[resultFor(first).status] - statusWeight[resultFor(second).status]);
-  list.replaceChildren(...visibleRoots.map((item) => requirementCard(item, childrenByParent)));
+  const renderedRoots = visibleRoots.slice(0, visibleRootLimit);
+  const grouped = new Map();
+  for (const item of renderedRoots) {
+    const group = workflowGroupForSubtree(item, childrenByParent);
+    if (!grouped.has(group)) grouped.set(group, []);
+    grouped.get(group).push(item);
+  }
+  const fragments = [];
+  for (const [group, items] of grouped) {
+    const section = document.createElement("section");
+    section.className = "requirement-workflow-group";
+    section.dataset.workflowGroup = group;
+    const heading = document.createElement("header");
+    const title = document.createElement("h3");
+    title.textContent = WORKFLOW_GROUP_META[group].label;
+    const description = document.createElement("p");
+    description.textContent = WORKFLOW_GROUP_META[group].description;
+    heading.append(title, description);
+    const cards = document.createElement("div");
+    cards.className = "requirement-group-cards";
+    cards.append(...items.map((item) => requirementCard(item, childrenByParent)));
+    section.append(heading, cards);
+    fragments.push(section);
+  }
+  list.replaceChildren(...fragments);
+  const showMore = document.querySelector("#show-more-requirements");
+  const remainingRoots = Math.max(0, visibleRoots.length - renderedRoots.length);
+  showMore.hidden = remainingRoots === 0;
+  showMore.textContent = remainingRoots ? `הצג עוד משימות (${remainingRoots} נותרו ברשימה)` : "הצג עוד משימות";
   document.querySelector("#empty-state").hidden = requirements.length !== 0;
   document.querySelector("#filter-empty").hidden = requirements.length === 0 || visibleRoots.length !== 0;
+  renderWorkflowProgress();
+}
+
+function renderWorkflowProgress() {
+  const progress = workflowProgress(
+    tender.requirements ?? [],
+    tender.results?.by_requirement_id ?? {},
+    profile.business_facts ?? {},
+    tender.results?.responses ?? {},
+  );
+  const percent = progress.total ? Math.round((100 * progress.completed) / progress.total) : 100;
+  text("workflow-progress-count", `${progress.completed} מתוך ${progress.total} משימות טופלו · ${progress.remaining} נותרו`);
+  const track = document.querySelector(".workflow-progress-track");
+  track.setAttribute("aria-valuemax", String(progress.total));
+  track.setAttribute("aria-valuenow", String(progress.completed));
+  document.querySelector("#workflow-progress-bar").style.width = `${percent}%`;
+  const next = document.querySelector("#next-requirement-button");
+  next.disabled = progress.remaining === 0;
+  next.textContent = progress.remaining ? "למשימה הבאה" : "כל המשימות טופלו";
+}
+
+function setWorkflowView(view) {
+  activeWorkflowView = view;
+  visibleRootLimit = 8;
+  for (const button of document.querySelectorAll("[data-workflow-view]")) {
+    button.classList.toggle("is-active", button.dataset.workflowView === view);
+  }
+  renderRequirements();
+}
+
+function openNextRequirement() {
+  activeFilter = "all";
+  for (const button of document.querySelectorAll("[data-filter]")) {
+    button.classList.toggle("is-active", button.dataset.filter === "all");
+  }
+  setWorkflowView(WORKFLOW_VIEW.ATTENTION);
+  const atomicIds = atomicRequirementIds(tender.requirements ?? []);
+  const target = [...document.querySelectorAll("details.requirement-card")]
+    .find((card) => atomicIds.has(card.dataset.requirementId));
+  if (!target) return;
+  target.open = true;
+  let ancestor = target.parentElement?.closest("details.requirement-card");
+  while (ancestor) {
+    ancestor.open = true;
+    ancestor = ancestor.parentElement?.closest("details.requirement-card");
+  }
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
+  target.querySelector(":scope > summary")?.focus({ preventScroll: true });
 }
 
 function renderOverview() {
@@ -875,7 +1034,12 @@ function renderOverview() {
     filterBtn.className = "button button-text";
     filterBtn.textContent = "סנן לתנאי סף קריטיים";
     filterBtn.addEventListener("click", () => {
+      activeWorkflowView = WORKFLOW_VIEW.ATTENTION;
       activeFilter = "critical";
+      visibleRootLimit = 8;
+      for (const viewButton of document.querySelectorAll("[data-workflow-view]")) {
+        viewButton.classList.toggle("is-active", viewButton.dataset.workflowView === WORKFLOW_VIEW.ATTENTION);
+      }
       for (const candidate of document.querySelectorAll("[data-filter]")) {
         candidate.classList.toggle("is-active", candidate.dataset.filter === "critical");
       }
@@ -949,7 +1113,7 @@ function renderFitAnalysis() {
     state.textContent = "✕ הסבר ה־AI נכשל. תוצאות הבדיקה האוטומטית נשמרו ומוצגות כרגיל.";
   } else {
     state.dataset.state = "idle";
-    state.textContent = "הסבר ה־AI יופק לאחר לחיצה על „בדוק שוב”.";
+    state.textContent = "הסבר ה־AI יופק לאחר לחיצה על „עדכן את בדיקת ההתאמה”.";
   }
 }
 
@@ -1082,13 +1246,15 @@ async function compare(successCopy = null) {
     });
     await refreshData();
     renderAll();
+    setFitAnalysisVisible(true);
     if (tender.processing?.steps?.compare?.status === "done") localStorage.removeItem("tenderfit.activeTender");
     const elapsed = performance.now() - startedAt;
-    setCompareMessage("success", "✓", successCopy ?? `ההשוואה והסבר ה־AI הושלמו בתוך ${(elapsed / 1000).toFixed(2)} שניות.`);
+    setCompareMessage("success", "✓", successCopy ?? `בדיקת ההתאמה והסבר ה־AI עודכנו בתוך ${(elapsed / 1000).toFixed(2)} שניות.`);
   } catch (error) {
     try {
       await refreshData();
       renderAll();
+      setFitAnalysisVisible(true);
     } catch {
       // Keep the original failure message when refreshing the saved code results also fails.
     }
@@ -1141,7 +1307,28 @@ async function load() {
 }
 
 document.querySelector("#logout-button").addEventListener("click", async () => { await supabase.auth.signOut(); location.replace("index.html"); });
-compareButton.addEventListener("click", compare);
+compareButton.addEventListener("click", () => compare());
+fitAnalysisToggle.addEventListener("click", () => {
+  const show = document.querySelector("#fit-analysis-card").hidden;
+  setFitAnalysisVisible(show);
+  if (show) document.querySelector("#fit-analysis-card").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+document.querySelector("#workflow-views").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-workflow-view]");
+  if (button) setWorkflowView(button.dataset.workflowView);
+});
+document.querySelector("#next-requirement-button").addEventListener("click", openNextRequirement);
+document.querySelector("#show-more-requirements").addEventListener("click", () => {
+  visibleRootLimit += 8;
+  renderRequirements();
+});
+document.querySelector("#requirements-list").addEventListener("toggle", (event) => {
+  const opened = event.target;
+  if (!(opened instanceof HTMLDetailsElement) || !opened.open || !opened.classList.contains("requirement-card")) return;
+  for (const sibling of opened.parentElement?.children ?? []) {
+    if (sibling !== opened && sibling.matches?.("details.requirement-card")) sibling.open = false;
+  }
+}, true);
 document.querySelector("#decision-go").addEventListener("click", () => saveDecision("go"));
 document.querySelector("#decision-no-go").addEventListener("click", () => saveDecision("no_go"));
 document.querySelector("#checklist-link").addEventListener("click", (event) => {
@@ -1156,6 +1343,7 @@ document.querySelector("#result-filters").addEventListener("click", (event) => {
   const button = event.target.closest("[data-filter]");
   if (!button) return;
   activeFilter = button.dataset.filter;
+  visibleRootLimit = 8;
   for (const candidate of document.querySelectorAll("[data-filter]")) candidate.classList.toggle("is-active", candidate === button);
   renderRequirements();
 });

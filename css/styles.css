@@ -1942,6 +1942,228 @@ blockquote {
   }
 }
 
+/* M6 guided tender workspace */
+.overview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+#fit-analysis-card {
+  margin-top: 1rem;
+  border-inline-start: 4px solid var(--color-accent-dark);
+}
+
+.workflow-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem 1rem;
+  align-items: center;
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid #bfe5dc;
+  border-radius: 12px;
+  background: #f2fbf8;
+}
+
+.workflow-progress-copy {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.workflow-progress-copy span {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.workflow-progress-track {
+  grid-column: 1;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dce7e4;
+}
+
+.workflow-progress-track > span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent-dark);
+  transition: width 180ms ease;
+}
+
+.workflow-controls .button {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+}
+
+.workspace-tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  padding: 0.25rem;
+  overflow-x: auto;
+  border-radius: 10px;
+  background: var(--color-app-background);
+}
+
+.workspace-tab {
+  flex: 1 0 auto;
+  min-height: 42px;
+  padding: 0.55rem 0.8rem;
+  border: 0;
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.workspace-tab.is-active {
+  color: var(--color-accent-dark);
+  background: var(--color-card);
+  box-shadow: 0 1px 4px rgba(11, 47, 74, 0.12);
+}
+
+.advanced-filters {
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.advanced-filters > summary {
+  padding: 0.65rem 0;
+  color: var(--color-link);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.requirement-workflow-group {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.requirement-workflow-group + .requirement-workflow-group {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.requirement-workflow-group > header h3,
+.requirement-workflow-group > header p {
+  margin: 0;
+}
+
+.requirement-workflow-group > header p {
+  margin-top: 0.2rem;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+}
+
+.requirement-group-cards {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.show-more-requirements {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+details.requirement-card > summary {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.9rem;
+  border-bottom: 0;
+  list-style: none;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+details.requirement-card > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.requirement-card > summary::after {
+  content: "פתיחה +";
+  justify-self: start;
+  color: var(--color-link);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+details.requirement-card[open] > summary {
+  border-bottom: 1px solid var(--color-border);
+}
+
+details.requirement-card[open] > summary::after {
+  content: "סגירה −";
+}
+
+details.requirement-card > :not(summary) {
+  margin-inline: 0.9rem;
+}
+
+.chip-workflow {
+  color: #155f53;
+  background: #dcf5ef;
+}
+
+.response-data-panel {
+  border-color: #d4dce7;
+  background: #f7f9fc;
+}
+
+.advanced-source-tables {
+  padding: 0;
+}
+
+.advanced-source-tables > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  list-style: none;
+  cursor: pointer;
+}
+
+.advanced-source-tables > summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-source-tables > summary + p,
+.advanced-source-tables > #source-tables-list {
+  margin-inline: 1rem;
+}
+
+.advanced-source-tables > #source-tables-list {
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 599px) {
+  .overview-actions,
+  .overview-actions .button {
+    width: 100%;
+  }
+
+  .workflow-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-progress-track,
+  .workflow-controls .button {
+    grid-row: auto;
+    grid-column: 1;
+  }
+
+  .workspace-tab {
+    flex: 0 0 auto;
+  }
+}
+
 /* M6 visual parity pass — DESIGN v2.5 */
 :root {
   --shadow-card: 0 4px 16px rgba(11, 47, 74, 0.08), 0 1px 3px rgba(11, 47, 74, 0.04);
@@ -2702,4 +2924,18 @@ body {
   .checklist-progress-card #progress-count {
     grid-column: 3;
   }
+}
+
+/* Keep guided-workspace details above the earlier card compatibility rules. */
+details.requirement-card > summary {
+  margin: 0;
+  padding: 0.9rem;
+}
+
+details.requirement-card > :not(summary) {
+  margin-inline: 0.9rem;
+}
+
+.advanced-source-tables {
+  padding: 0;
 }
