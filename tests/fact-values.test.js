@@ -8,6 +8,7 @@ import {
   formatFactValue,
   inputKindForFact,
   parseFactInput,
+  questionForFact,
 } from "../js/fact-values.js";
 
 test("the six Business Fact types have deterministic input handling", () => {
@@ -39,3 +40,15 @@ test("translates types, units and enum values to Hebrew for display", () => {
   assert.equal(formatFactOption("authorized_supplier"), "ספק מורשה בישראל");
   assert.equal(formatFactOption("manufacturer"), "יצרן המערכת");
 });
+
+test("questionForFact resolves natural Hebrew questions", () => {
+  assert.equal(
+    questionForFact("simultaneous_food_service_sites_count"),
+    "כמה אתרי הסעדה העסק הפעיל בו-זמנית בתקופה הרלוונטית?"
+  );
+  assert.equal(
+    questionForFact("custom_unknown_key", { title_he: "שאלה מותאמת" }),
+    "שאלה מותאמת"
+  );
+});
+

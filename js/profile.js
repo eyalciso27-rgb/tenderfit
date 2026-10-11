@@ -5,6 +5,7 @@ import {
   formatFactUnit,
   inputKindForFact,
   parseFactInput,
+  questionForFact,
 } from "./fact-values.js";
 import { supabase } from "./supabase.js";
 
@@ -28,7 +29,8 @@ function setMessage(state, icon, text) {
 
 function labelFor(key) {
   const fact = profile?.business_facts?.[key];
-  return fact?.title_he || fact?.description_he || registryByKey.get(key)?.description_he || "נתון עסק נוסף";
+  const registryFact = registryByKey.get(key);
+  return questionForFact(key, fact, registryFact);
 }
 
 function createInput(key, fact) {

@@ -26,6 +26,7 @@ let currentUser = null;
 let registryByKey = new Map();
 let activeFilter = "all";
 let sourcePdfUrl = null;
+let manualReviewSaving = false;
 
 function text(id, value) { document.querySelector(`#${id}`).textContent = value ?? "—"; }
 function bidi(value) { const bdi = document.createElement("bdi"); bdi.textContent = value; return bdi; }
@@ -158,6 +159,103 @@ function factEditor(key, fallbackRequirement = null) {
   return form;
 }
 
+async function saveManualReview(requirementId, decision, note, form) {
+  if (manualReviewSaving) return;
+  manualReviewSaving = true;
+  const controls = [...form.querySelectorAll("button, textarea")];
+  const feedback = form.querySelector(".manual-review-feedback");
+  for (const control of controls) control.disabled = true;
+  feedback.dataset.state = "working";
+  feedback.textContent = "שומר ומחשב מחדש…";
+
+  try {
+    const manualReviews = { ...(tender.results?.manual_reviews ?? {}) };
+    if (decision === null) {
+      delete manualReviews[requirementId];
+    } else {
+      manualReviews[requirementId] = {
+        decision,
+        note: note.trim().slice(0, 500),
+        reviewed_at: new Date().toISOString(),
+        source: "user",
+      };
+    }
+    const nextResults = { ...(tender.results ?? {}), manual_reviews: manualReviews };
+    const { data, error } = await supabase
+      .from("tenders")
+      .update({ results: nextResults, updated_at: new Date().toISOString() })
+      .eq("id", tender.id)
+      .select("results")
+      .single();
+    if (error) throw new Error("שמירת ההחלטה נכשלה.");
+    tender.results = data.results;
+    const successCopy = decision === null
+      ? "האישור הידני בוטל והתוצאה חזרה ל־\"דורש בדיקה\". לא הופעלה קריאת AI."
+      : "ההחלטה הידנית נשמרה והמונים עודכנו. לא הופעלה קריאת AI.";
+    await compare(successCopy);
+  } catch (error) {
+    feedback.dataset.state = "error";
+    feedback.textContent = error.message || "שמירת ההחלטה נכשלה.";
+  } finally {
+    manualReviewSaving = false;
+    for (const control of controls) control.disabled = false;
+  }
+}
+
+function manualReviewForm(requirement, result) {
+  const form = document.createElement("section");
+  form.className = "manual-review-form";
+  form.setAttribute("aria-label", "אישור ידני לדרישה");
+
+  const heading = document.createElement("h4");
+  heading.textContent = "החלטת העסק לגבי הדרישה";
+  const guidance = document.createElement("p");
+  guidance.className = "manual-review-guidance";
+  guidance.textContent = "לאחר בדיקת המקור, סמנו אם העסק עומד בדרישה. ההחלטה תישמר בנפרד מתוצאת המערכת.";
+
+  const noteLabel = document.createElement("label");
+  noteLabel.textContent = "הערה או אסמכתא (רשות)";
+  const note = document.createElement("textarea");
+  note.rows = 2;
+  note.maxLength = 500;
+  note.value = result.manual_review?.note ?? "";
+  note.placeholder = "לדוגמה: נבדק מול רישיון בתוקף";
+  noteLabel.append(note);
+
+  const actions = document.createElement("div");
+  actions.className = "manual-review-actions";
+  const metButton = document.createElement("button");
+  metButton.type = "button";
+  metButton.className = "button manual-review-met";
+  metButton.textContent = "✓ העסק עומד בדרישה";
+  const gapButton = document.createElement("button");
+  gapButton.type = "button";
+  gapButton.className = "button manual-review-gap";
+  gapButton.textContent = "✕ העסק אינו עומד בדרישה";
+  const resetButton = document.createElement("button");
+  resetButton.type = "button";
+  resetButton.className = "button button-text manual-review-reset";
+  resetButton.textContent = "↺ בטל החלטה ידנית";
+  resetButton.hidden = !result.manual_review;
+  actions.append(metButton, gapButton, resetButton);
+
+  const feedback = document.createElement("p");
+  feedback.className = "manual-review-feedback";
+  feedback.setAttribute("aria-live", "polite");
+  if (result.manual_review) {
+    feedback.dataset.state = "success";
+    feedback.textContent = result.manual_review.decision === "met"
+      ? "✓ נשמר אישור ידני: העסק עומד בדרישה."
+      : "✕ נשמרה החלטה ידנית: העסק אינו עומד בדרישה.";
+  }
+
+  metButton.addEventListener("click", () => saveManualReview(requirement.requirement_id, "met", note.value, form));
+  gapButton.addEventListener("click", () => saveManualReview(requirement.requirement_id, "gap", note.value, form));
+  resetButton.addEventListener("click", () => saveManualReview(requirement.requirement_id, null, note.value, form));
+  form.append(heading, guidance, noteLabel, actions, feedback);
+  return form;
+}
+
 const statusWeight = { gap: 0, missing: 1, review: 2, met: 3 };
 
 function subtreeMatches(requirement, childrenByParent) {
@@ -171,6 +269,12 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
   const header = document.createElement("header");
   const chips = document.createElement("div"); chips.className = "chip-row";
   chips.append(resultBadge(result.status));
+  if (result.manual_review) {
+    const manual = document.createElement("span");
+    manual.className = "chip chip-manual";
+    manual.textContent = "אישור משתמש";
+    chips.append(manual);
+  }
   if (requirement.requirement_target === "evaluation_rule") {
     const evaluation = document.createElement("span"); evaluation.className = "chip chip-evaluation"; evaluation.textContent = "סעיף ניקוד · אינו תנאי סף"; chips.append(evaluation);
   }
@@ -189,9 +293,15 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
     const unitLabel = formatFactUnit(fact?.unit);
     comparison.append(detailRow("נתון העסק", `${formatFactValue(fact)}${unitLabel ? ` ${unitLabel}` : ""}`));
   }
+  if (result.manual_review) comparison.append(detailRow("תוצאת המערכת", `${RESULT_STATUS[result.automatic_status]?.icon ?? "!"} ${RESULT_STATUS[result.automatic_status]?.label ?? "דורש בדיקה"}`));
   comparison.append(detailRow("הסבר התוצאה", result.explanation));
+  if (result.manual_review?.note) comparison.append(detailRow("הערת המשתמש", result.manual_review.note));
   article.append(comparison);
   if (result.status === "missing" && factKey) article.append(factEditor(factKey, requirement));
+  const canReviewManually = requirement.requirement_target === "business_fact"
+    && !childrenByParent.has(requirement.requirement_id)
+    && (result.status === "review" || result.automatic_status === "review");
+  if (canReviewManually) article.append(manualReviewForm(requirement, result));
 
   const fields = document.createElement("div"); fields.className = "requirement-fields";
   const valueLabel = requirement.requirement_target === "evaluation_rule" ? "ניקוד מרבי / ערך" : "ערך";
@@ -350,7 +460,7 @@ async function refreshData() {
   profile.business_facts ??= {};
 }
 
-async function compare() {
+async function compare(successCopy = null) {
   compareButton.disabled = true;
   const startedAt = performance.now();
   setCompareMessage("working", "…", "משווה בקוד את דרישות המכרז לנתוני העסק…");
@@ -359,7 +469,7 @@ async function compare() {
     await refreshData();
     renderAll();
     const elapsed = performance.now() - startedAt;
-    setCompareMessage("success", "✓", `ההשוואה הושלמה בתוך ${(elapsed / 1000).toFixed(2)} שניות. לא הופעלה קריאת AI.`);
+    setCompareMessage("success", "✓", successCopy ?? `ההשוואה הושלמה בתוך ${(elapsed / 1000).toFixed(2)} שניות. לא הופעלה קריאת AI.`);
   } catch (error) {
     setCompareMessage("error", "✕", error.message || "ההשוואה נכשלה.");
   } finally {

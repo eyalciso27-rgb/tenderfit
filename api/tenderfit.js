@@ -13,6 +13,7 @@ import { aiCallReservationUsd, assertAiBudgetAvailable, BudgetExceededError } fr
 import { compareAtomicRequirement } from "../lib/comparison.js";
 import { fillExtractorPrompt, getRegion, prefixRegionRequirementIds } from "../lib/extractor.js";
 import { ensureBusinessFacts } from "../lib/facts.js";
+import { applyManualReviews } from "../lib/manual-review.js";
 import { createRegionPdfExcerpt, normalizeExcerptSourcePages } from "../lib/pdf-region.js";
 import { estimateGeminiCost } from "../lib/pricing.js";
 import { conservativeDedup, normalizeStructuralParents, prepareAjvSchema, validateRequirements } from "../lib/validate.js";
@@ -1059,7 +1060,7 @@ async function runValidate(supabase, tender) {
   }
 }
 
-export function buildComparisonResults(requirements, profileFacts, submissionDeadline) {
+export function buildComparisonResults(requirements, profileFacts, submissionDeadline, manualReviews = {}) {
   const normalized = ensureBusinessFacts(requirements, profileFacts, businessFactsRegistry);
   const atomicResults = {};
   for (const requirement of requirements ?? []) {
@@ -1070,9 +1071,12 @@ export function buildComparisonResults(requirements, profileFacts, submissionDea
       { factKey, submissionDeadline, units: unitsRegistry },
     );
   }
+  const reviewed = applyManualReviews(requirements, atomicResults, manualReviews);
+  const results = aggregateComparison(requirements, reviewed.results);
+  results.manual_reviews = reviewed.manualReviews;
   return {
     facts: normalized.facts,
-    results: aggregateComparison(requirements, atomicResults),
+    results,
   };
 }
 
@@ -1123,6 +1127,7 @@ async function runCompare(supabase, user, tender) {
       tender.requirements ?? [],
       profile?.business_facts ?? {},
       tender.submission_deadline,
+      tender.results?.manual_reviews ?? {},
     );
     await saveBusinessFacts(supabase, user.id, compared.facts);
     const finishedAt = new Date().toISOString();
