@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const auth = await readFile(new URL("../js/auth.js", import.meta.url), "utf8");
+const supabaseClient = await readFile(new URL("../js/supabase.js", import.meta.url), "utf8");
 const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
 
 test("login keeps password authentication and adds an accessible Google option", () => {
@@ -17,7 +18,10 @@ test("login keeps password authentication and adds an accessible Google option",
 test("Google login uses Supabase OAuth with a same-site callback", () => {
   assert.match(auth, /signInWithOAuth\(\{\s*provider:\s*"google"/s);
   assert.match(auth, /redirectTo:\s*googleRedirectUrl\(\)/);
+  assert.match(auth, /skipBrowserRedirect:\s*true/);
+  assert.match(auth, /window\.location\.assign\(data\.url\)/);
   assert.match(auth, /new URL\("index\.html", window\.location\.href\)/);
+  assert.match(supabaseClient, /detectSessionInUrl:\s*true/);
   assert.doesNotMatch(auth, /provider_token|provider_refresh_token|localStorage\.setItem/);
 });
 

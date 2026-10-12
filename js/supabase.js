@@ -4,6 +4,6 @@ import { CONFIG, isConfigured } from "./config.js";
 
 export const supabase = isConfigured()
   ? createClient(CONFIG.supabaseUrl, CONFIG.supabasePublishableKey, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     })
   : null;

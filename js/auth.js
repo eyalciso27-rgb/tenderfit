@@ -178,17 +178,21 @@ googleLoginButton.addEventListener("click", async () => {
 
   setLoginBusy(true);
   setLoginMessage("מעבירים להתחברות מאובטחת באמצעות Google…");
-  const { error } = await supabase.auth.signInWithOAuth({
+  const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
       redirectTo: googleRedirectUrl(),
+      skipBrowserRedirect: true,
     },
   });
 
-  if (error) {
+  if (error || !data?.url) {
     setLoginBusy(false);
     setLoginMessage("לא הצלחנו להתחיל את ההתחברות באמצעות Google. יש לנסות שוב.");
+    return;
   }
+
+  window.location.assign(data.url);
 });
 
 logoutButton.addEventListener("click", async () => {
