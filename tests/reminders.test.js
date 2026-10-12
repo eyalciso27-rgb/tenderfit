@@ -62,3 +62,30 @@ test("a Go tender within seven days creates the existing F32 deadline reminder",
   assert.equal(emails[0].deadline_due, true);
   assert.equal(emails[0].needs_results_update, false);
 });
+
+test("No-Go, far deadlines, and missing deadlines do not create deadline mail", () => {
+  const emails = buildDueReminderEmails([
+    tender({ id: "no-go", decision: "no_go", submission_deadline: "2026-10-15T09:00:00.000Z" }),
+    tender({ id: "far", decision: "go", submission_deadline: "2026-10-19T09:00:00.000Z" }),
+    tender({ id: "missing", decision: "go", submission_deadline: null }),
+  ], { now });
+  assert.deepEqual(emails, []);
+});
+
+test("a due review reminder changes only its sent marker inside saved results", () => {
+  const original = {
+    counts: { met: 1, gap: 0, review: 1, missing: 0 },
+    responses: {
+      r1: { response_status: "review", reminder_on: "2026-10-11", note: "לבדוק" },
+      r2: { response_status: "met", note: "נבדק" },
+    },
+  };
+  const [email] = buildDueReminderEmails([tender({ results: original })], { now });
+  assert.deepEqual(email.results.counts, original.counts);
+  assert.deepEqual(email.results.responses.r2, original.responses.r2);
+  assert.deepEqual(email.results.responses.r1, {
+    ...original.responses.r1,
+    reminder_sent_at: now.toISOString(),
+  });
+  assert.equal("reminder_sent_at" in original.responses.r1, false);
+});

@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   normalizeTenderResponse,
   normalizeTenderResponses,
+  reminderSentAtAfterDateChange,
 } from "../lib/tender-response.js";
 
 function requirement(id, overrides = {}) {
@@ -63,6 +64,13 @@ test("a reminder is kept only for requires-review and may omit a date", () => {
   assert.equal(withoutDate.reminder_on, null);
   assert.equal(irrelevantDate.reminder_on, null);
   assert.equal(irrelevantDate.reminder_sent_at, null);
+});
+
+test("changing a reminder date clears the sent marker and keeping it preserves the marker", () => {
+  const previous = { reminder_on: "2026-10-20", reminder_sent_at: "2026-10-20T08:00:00.000Z" };
+  assert.equal(reminderSentAtAfterDateChange(previous, "2026-10-20"), previous.reminder_sent_at);
+  assert.equal(reminderSentAtAfterDateChange(previous, "2026-10-21"), null);
+  assert.equal(reminderSentAtAfterDateChange(previous, null), null);
 });
 
 test("responses are allowed only for atomic requirements", () => {

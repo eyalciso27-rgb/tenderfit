@@ -25,6 +25,7 @@ import { tenderDemoNotice } from "./demo-tender.js";
 import {
   normalizeTenderResponse,
   normalizeTenderResponses,
+  reminderSentAtAfterDateChange,
   TENDER_RESPONSE_STATUS,
 } from "../lib/tender-response.js";
 import { buildAiErrorReport, buildDecisionUpdate } from "../lib/m4-actions.js";
@@ -416,7 +417,7 @@ async function saveTenderResponse(requirementId, form, clear = false) {
         response_basis: form.querySelector("[name='response_basis']").value || null,
         note: form.querySelector("[name='response_note']").value,
         reminder_on: reminderOn,
-        reminder_sent_at: previous?.reminder_on === reminderOn ? previous?.reminder_sent_at : null,
+        reminder_sent_at: reminderSentAtAfterDateChange(previous, reminderOn),
         updated_at: new Date().toISOString(),
         source: "user",
       });
