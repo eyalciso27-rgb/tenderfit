@@ -104,6 +104,20 @@
             <button class="workspace-tab" type="button" data-workflow-view="all">כל הדרישות</button>
             <button class="workspace-tab" type="button" data-workflow-view="answered">נבדקו או נענו</button>
           </div>
+          <section id="tender-category-pilot" class="tender-category-pilot" aria-labelledby="tender-category-title" hidden>
+            <header>
+              <div><p class="eyebrow">נושאי המכרז</p><h3 id="tender-category-title">עבודה לפי נושא</h3></div>
+              <span id="tender-category-count" class="review-chip"></span>
+            </header>
+            <p class="tender-category-help">הנושאים מבוססים על הסיווג שכבר חולץ מהמכרז. בחרו נושא כדי להציג רק את הדרישות ששייכות אליו.</p>
+            <label for="tender-category-select">נושא מוצג</label>
+            <select id="tender-category-select" class="field-control"></select>
+            <div id="tender-category-summary" class="tender-category-summary" aria-live="polite">
+              <span><strong><bdi id="tender-category-total">0</bdi></strong> דרישות</span>
+              <span><strong><bdi id="tender-category-attention">0</bdi></strong> לטיפול</span>
+              <span><strong><bdi id="tender-category-critical">0</bdi></strong> תנאי סף קריטיים</span>
+            </div>
+          </section>
           <details class="advanced-filters">
             <summary>סינון מתקדם לפי תוצאה</summary>
           <div id="result-filters" class="filter-row" role="group" aria-label="סינון דרישות לפי תוצאה">

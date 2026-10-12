@@ -40,6 +40,11 @@ import {
   workflowProgress,
 } from "../lib/requirement-workflow.js";
 import { summarizeCustomerResponses } from "../lib/customer-response-summary.js";
+import {
+  buildTenderCategoryIndex,
+  categoryKeysForSubtree,
+  pilotCategoriesEnabled,
+} from "../lib/tender-categories.js";
 
 const params = new URLSearchParams(location.search);
 const tenderId = params.get("id");
@@ -55,6 +60,8 @@ let registryByKey = new Map();
 let activeFilter = "all";
 let activeWorkflowView = WORKFLOW_VIEW.ATTENTION;
 let visibleRootLimit = 8;
+let activeTenderCategory = null;
+let tenderCategoryIndex = { groups: [], categoryByRequirementId: new Map() };
 let sourcePdfUrl = null;
 let tenderResponseSaving = false;
 let decisionSaving = false;
@@ -739,15 +746,90 @@ function matchesWorkflowView(requirement, childrenByParent) {
   return true;
 }
 
+function categoryPilotIsActive() {
+  return Boolean(tender && pilotCategoriesEnabled(tender.id));
+}
+
+function requirementMatchesActiveCategory(requirement) {
+  if (!categoryPilotIsActive() || !activeTenderCategory) return true;
+  return tenderCategoryIndex.categoryByRequirementId.get(requirement.requirement_id) === activeTenderCategory;
+}
+
 function subtreeMatches(requirement, childrenByParent) {
   const children = childrenByParent.get(requirement.requirement_id) ?? [];
   if (children.length) return children.some((child) => subtreeMatches(child, childrenByParent));
+  if (!requirementMatchesActiveCategory(requirement)) return false;
   if (!matchesWorkflowView(requirement, childrenByParent)) return false;
   if (activeFilter === "all") return true;
   if (activeFilter === "critical") {
     return Boolean(requirement.is_critical);
   }
   return resultFor(requirement).status === activeFilter;
+}
+
+function displayCategoryLabel(label) {
+  return translateCategory(label) ?? translateToHebrew(label) ?? label;
+}
+
+function categoryMetrics(group, requirementById, childrenByParent) {
+  const items = group.requirementIds.map((id) => requirementById.get(id)).filter(Boolean);
+  return {
+    total: items.length,
+    attention: items.filter((item) => workflowFor(item, childrenByParent).requiresAction).length,
+    critical: items.filter((item) => item.is_critical).length,
+  };
+}
+
+function firstCategoryWithAction(requirementById, childrenByParent) {
+  return tenderCategoryIndex.groups.find((group) => group.requirementIds.some((id) => {
+    const requirement = requirementById.get(id);
+    return requirement && workflowFor(requirement, childrenByParent).requiresAction;
+  }))?.key ?? tenderCategoryIndex.groups[0]?.key ?? null;
+}
+
+function categoryForRequirementId(requirementId, requirements, childrenByParent) {
+  const directCategory = tenderCategoryIndex.categoryByRequirementId.get(requirementId);
+  if (directCategory) return directCategory;
+  const requirement = requirements.find((item) => item.requirement_id === requirementId);
+  return requirement
+    ? [...categoryKeysForSubtree(requirement, childrenByParent, tenderCategoryIndex.categoryByRequirementId)][0] ?? null
+    : null;
+}
+
+function renderTenderCategoryPicker(requirements, childrenByParent) {
+  const section = document.querySelector("#tender-category-pilot");
+  if (!categoryPilotIsActive() || tenderCategoryIndex.groups.length === 0) {
+    section.hidden = true;
+    activeTenderCategory = null;
+    return;
+  }
+
+  const requirementById = new Map(requirements.map((item) => [item.requirement_id, item]));
+  if (!tenderCategoryIndex.groups.some((group) => group.key === activeTenderCategory)) {
+    activeTenderCategory = activeWorkflowView === WORKFLOW_VIEW.ATTENTION
+      ? firstCategoryWithAction(requirementById, childrenByParent)
+      : tenderCategoryIndex.groups[0].key;
+  }
+
+  const select = document.querySelector("#tender-category-select");
+  const options = tenderCategoryIndex.groups.map((group) => {
+    const option = document.createElement("option");
+    option.value = group.key;
+    option.textContent = displayCategoryLabel(group.label);
+    return option;
+  });
+  select.replaceChildren(...options);
+  select.value = activeTenderCategory;
+  text("tender-category-count", `${tenderCategoryIndex.groups.length} נושאים במכרז זה`);
+
+  const activeGroup = tenderCategoryIndex.groups.find((group) => group.key === activeTenderCategory);
+  const metrics = activeGroup
+    ? categoryMetrics(activeGroup, requirementById, childrenByParent)
+    : { total: 0, attention: 0, critical: 0 };
+  text("tender-category-total", String(metrics.total));
+  text("tender-category-attention", String(metrics.attention));
+  text("tender-category-critical", String(metrics.critical));
+  section.hidden = false;
 }
 
 function requirementCard(requirement, childrenByParent, ancestorIds = new Set()) {
@@ -932,6 +1014,8 @@ function renderRequirements() {
   const requirements = tender.requirements ?? [];
   const list = document.querySelector("#requirements-list");
   const { roots, childrenByParent } = organizeRequirements(requirements);
+  tenderCategoryIndex = buildTenderCategoryIndex(requirements, tender.regions?.regions ?? []);
+  renderTenderCategoryPicker(requirements, childrenByParent);
   const visibleRoots = roots.filter((item) => subtreeMatches(item, childrenByParent))
     .sort((first, second) => statusWeight[resultFor(first).status] - statusWeight[resultFor(second).status]);
   const renderedRoots = visibleRoots.slice(0, visibleRootLimit);
@@ -1047,6 +1131,15 @@ function openNextRequirement() {
   for (const button of document.querySelectorAll("[data-filter]")) {
     button.classList.toggle("is-active", button.dataset.filter === "all");
   }
+  if (categoryPilotIsActive()) {
+    const requirements = tender.requirements ?? [];
+    const { childrenByParent } = organizeRequirements(requirements);
+    tenderCategoryIndex = buildTenderCategoryIndex(requirements, tender.regions?.regions ?? []);
+    activeTenderCategory = firstCategoryWithAction(
+      new Map(requirements.map((item) => [item.requirement_id, item])),
+      childrenByParent,
+    );
+  }
   setWorkflowView(WORKFLOW_VIEW.ATTENTION);
   const atomicIds = atomicRequirementIds(tender.requirements ?? []);
   const target = [...document.querySelectorAll("details.requirement-card")]
@@ -1071,6 +1164,13 @@ function revealRequirementById(requirementId) {
   }
   for (const button of document.querySelectorAll("[data-filter]")) {
     button.classList.toggle("is-active", button.dataset.filter === "all");
+  }
+  if (categoryPilotIsActive()) {
+    const requirements = tender.requirements ?? [];
+    const { childrenByParent } = organizeRequirements(requirements);
+    tenderCategoryIndex = buildTenderCategoryIndex(requirements, tender.regions?.regions ?? []);
+    activeTenderCategory = categoryForRequirementId(requirementId, requirements, childrenByParent)
+      ?? activeTenderCategory;
   }
   renderRequirements();
   const target = [...document.querySelectorAll("details.requirement-card")]
@@ -1119,6 +1219,21 @@ function renderOverview() {
       activeWorkflowView = WORKFLOW_VIEW.ATTENTION;
       activeFilter = "critical";
       visibleRootLimit = 8;
+      if (categoryPilotIsActive()) {
+        const requirements = tender.requirements ?? [];
+        const { childrenByParent } = organizeRequirements(requirements);
+        tenderCategoryIndex = buildTenderCategoryIndex(requirements, tender.regions?.regions ?? []);
+        const firstCritical = requirements.find((item) =>
+          item.is_critical && workflowFor(item, childrenByParent).requiresAction,
+        );
+        if (firstCritical) {
+          activeTenderCategory = categoryForRequirementId(
+            firstCritical.requirement_id,
+            requirements,
+            childrenByParent,
+          );
+        }
+      }
       for (const viewButton of document.querySelectorAll("[data-workflow-view]")) {
         viewButton.classList.toggle("is-active", viewButton.dataset.workflowView === WORKFLOW_VIEW.ATTENTION);
       }
@@ -1399,6 +1514,11 @@ fitAnalysisToggle.addEventListener("click", () => {
 document.querySelector("#workflow-views").addEventListener("click", (event) => {
   const button = event.target.closest("[data-workflow-view]");
   if (button) setWorkflowView(button.dataset.workflowView);
+});
+document.querySelector("#tender-category-select").addEventListener("change", (event) => {
+  activeTenderCategory = event.currentTarget.value;
+  visibleRootLimit = 8;
+  renderRequirements();
 });
 document.querySelector("#next-requirement-button").addEventListener("click", openNextRequirement);
 document.querySelector("#show-more-requirements").addEventListener("click", () => {
