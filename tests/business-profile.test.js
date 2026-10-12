@@ -2,8 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  REUSABLE_PROFILE_FACTS,
+  findReusableProfileFact,
   normalizeBusinessProfileDetails,
   removeGeneratedMissingPlaceholders,
+  updateReusableProfileFacts,
 } from "../lib/business-profile.js";
 
 test("business identity fields are normalized separately from comparison facts", () => {
@@ -60,4 +63,71 @@ test("business profile details do not overwrite existing business facts", () => 
   };
   assert.deepEqual(updatedProfile.business_facts, existingFacts);
   assert.equal(updatedProfile.legal_name, "חברה לדוגמה בע״מ");
+});
+
+test("reusable profile facts save annual revenue with period and approved aliases", () => {
+  const update = updateReusableProfileFacts({
+    annual_revenue: "5,000,000",
+    annual_revenue_period: "2025",
+  }, {}, "2026-10-12T12:00:00.000Z");
+
+  assert.deepEqual(update.changedKeys, ["annual_revenue"]);
+  assert.equal(update.facts.annual_revenue.value, 5000000);
+  assert.equal(update.facts.annual_revenue.unit, "ILS");
+  assert.equal(update.facts.annual_revenue.period, "2025");
+  assert.deepEqual(update.facts.annual_revenue.aliases, ["annual_turnover", "financial_turnover"]);
+});
+
+test("reusable boolean facts preserve false and optional validity", () => {
+  const update = updateReusableProfileFacts({
+    public_entities_transactions_compliant: "false",
+    public_entities_transactions_compliant_valid_until: "2027-03-31",
+  }, {}, "2026-10-12T12:00:00.000Z");
+
+  assert.equal(update.facts.public_entities_transactions_compliant.value, false);
+  assert.equal(update.facts.public_entities_transactions_compliant.valid_until, "2027-03-31");
+  assert.equal(update.facts.public_entities_transactions_compliant.status, "known");
+});
+
+test("clearing a reusable fact removes it instead of persisting a missing placeholder", () => {
+  const existing = {
+    required_legal_licenses_valid: {
+      business_fact_type: "boolean",
+      value: true,
+      status: "known",
+    },
+  };
+  const update = updateReusableProfileFacts({}, existing, "2026-10-12T12:00:00.000Z");
+
+  assert.equal(update.facts.required_legal_licenses_valid, undefined);
+  assert.deepEqual(update.changedKeys, ["required_legal_licenses_valid"]);
+});
+
+test("annual revenue requires an explicit reporting year for safe reuse", () => {
+  assert.throws(
+    () => updateReusableProfileFacts({ annual_revenue: "1000000" }),
+    /שנת דיווח/,
+  );
+  assert.equal(REUSABLE_PROFILE_FACTS.length, 5);
+});
+
+test("an older annual turnover alias is shown and normalized to the canonical key", () => {
+  const field = REUSABLE_PROFILE_FACTS[0];
+  const existing = {
+    annual_turnover: {
+      business_fact_type: "currency",
+      unit: "ILS",
+      value: 4000000,
+      period: "2024",
+      status: "known",
+    },
+  };
+
+  assert.equal(findReusableProfileFact(existing, field).value, 4000000);
+  const update = updateReusableProfileFacts({
+    annual_revenue: "4500000",
+    annual_revenue_period: "2025",
+  }, existing, "2026-10-12T12:00:00.000Z");
+  assert.equal(update.facts.annual_turnover, undefined);
+  assert.equal(update.facts.annual_revenue.value, 4500000);
 });

@@ -1,14 +1,21 @@
 import { supabase } from "./supabase.js";
 import {
   BUSINESS_PROFILE_FIELDS,
+  REUSABLE_PROFILE_FACTS,
+  findReusableProfileFact,
   normalizeBusinessProfileDetails,
   removeGeneratedMissingPlaceholders,
+  updateReusableProfileFacts,
 } from "../lib/business-profile.js";
+import { markAffectedTenderAnalysesStale } from "./analysis-staleness.js";
 
 const message = document.querySelector("#profile-message");
 const detailsSection = document.querySelector("#business-details-section");
 const detailsForm = document.querySelector("#business-details-form");
 const saveDetailsButton = document.querySelector("#save-business-details");
+const reusableFactsSection = document.querySelector("#reusable-facts-section");
+const reusableFactsForm = document.querySelector("#reusable-facts-form");
+const saveReusableFactsButton = document.querySelector("#save-reusable-facts");
 let currentUser = null;
 let profile = null;
 
@@ -31,6 +38,24 @@ function populateBusinessDetails() {
   detailsSection.hidden = false;
 }
 
+function populateReusableFacts() {
+  for (const field of REUSABLE_PROFILE_FACTS) {
+    const fact = findReusableProfileFact(profile?.business_facts, field);
+    reusableFactsForm.elements[field.key].value = fact?.value === true
+      ? "true"
+      : fact?.value === false
+        ? "false"
+        : fact?.value ?? "";
+    if (field.requiresPeriod) {
+      reusableFactsForm.elements[`${field.key}_period`].value = fact?.period ?? "";
+    }
+    if (field.supportsValidity) {
+      reusableFactsForm.elements[`${field.key}_valid_until`].value = fact?.valid_until ?? "";
+    }
+  }
+  reusableFactsSection.hidden = false;
+}
+
 async function saveBusinessDetails() {
   saveDetailsButton.disabled = true;
   try {
@@ -51,6 +76,46 @@ async function saveBusinessDetails() {
     setMessage("error", "✕", error.message);
   } finally {
     saveDetailsButton.disabled = false;
+  }
+}
+
+async function saveReusableFacts() {
+  saveReusableFactsButton.disabled = true;
+  try {
+    const changedAt = new Date().toISOString();
+    const formValues = Object.fromEntries(new FormData(reusableFactsForm));
+    const update = updateReusableProfileFacts(formValues, profile.business_facts, changedAt);
+    if (!update.changedKeys.length) {
+      setMessage("success", "✓", "לא נמצאו שינויים בנתוני העסק.");
+      return;
+    }
+    const { data, error } = await supabase.from("business_profile").upsert({
+      user_id: currentUser.id,
+      ...normalizeBusinessProfileDetails(profile),
+      business_facts: update.facts,
+      updated_at: changedAt,
+    }, { onConflict: "user_id" }).select("*").single();
+    if (error) throw new Error("שמירת נתוני העסק נכשלה.");
+    profile = data;
+    populateReusableFacts();
+
+    let staleMessage = "";
+    try {
+      const affectedCount = await markAffectedTenderAnalysesStale(
+        supabase,
+        currentUser.id,
+        update.changedKeys,
+        changedAt,
+      );
+      if (affectedCount) staleMessage = ` ${affectedCount} מכרזים סומנו לעדכון בדיקת ההתאמה.`;
+    } catch (staleError) {
+      staleMessage = ` ${staleError.message}`;
+    }
+    setMessage("success", "✓", `נתוני העסק נשמרו בהצלחה.${staleMessage}`);
+  } catch (error) {
+    setMessage("error", "✕", error.message);
+  } finally {
+    saveReusableFactsButton.disabled = false;
   }
 }
 
@@ -86,6 +151,7 @@ async function load() {
   }
 
   populateBusinessDetails();
+  populateReusableFacts();
   message.hidden = true;
 }
 
@@ -97,6 +163,11 @@ document.querySelector("#logout-button").addEventListener("click", async () => {
 detailsForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   await saveBusinessDetails();
+});
+
+reusableFactsForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await saveReusableFacts();
 });
 
 try {

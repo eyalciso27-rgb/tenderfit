@@ -10,6 +10,7 @@ const tenderHtml = await readFile(new URL("../tender.html", import.meta.url), "u
 const tenderScript = await readFile(new URL("../js/tender.js", import.meta.url), "utf8");
 const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
 const profileHtml = await readFile(new URL("../profile.html", import.meta.url), "utf8");
+const profileScript = await readFile(new URL("../js/profile.js", import.meta.url), "utf8");
 const checklistHtml = await readFile(new URL("../checklist.html", import.meta.url), "utf8");
 
 test("F10 renders six persisted processing phases with words and icons", () => {
@@ -57,6 +58,18 @@ test("existing M6 screens use the approved mobile shell and dashboard layout", (
   assert.match(tenderScript, /organizeDashboardLayout/);
   assert.match(styles, /grid-template-columns: minmax\(0, 1fr\) 340px/);
   assert.match(styles, /bottom: 68px/);
+});
+
+test("the profile exposes only approved reusable business data with period and validity context", () => {
+  assert.match(profileHtml, /id="reusable-facts-form"/);
+  assert.match(profileHtml, /name="annual_revenue"/);
+  assert.match(profileHtml, /name="annual_revenue_period"/);
+  assert.match(profileHtml, /name="public_entities_transactions_compliant"/);
+  assert.match(profileHtml, /name="required_legal_licenses_valid"/);
+  assert.match(profileHtml, /name="valid_food_service_licenses"/);
+  assert.match(profileHtml, /name="valid_kosher_certificate"/);
+  assert.doesNotMatch(profileHtml, /name="tender_response"/);
+  assert.match(profileScript, /markAffectedTenderAnalysesStale/);
 });
 
 test("the M6 tender page is a guided workspace instead of two long duplicate reports", () => {

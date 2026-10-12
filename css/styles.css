@@ -554,6 +554,65 @@ textarea::placeholder {
   align-self: end;
 }
 
+.reusable-facts-form {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1rem;
+}
+
+.profile-fact-group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.profile-fact-group legend {
+  margin-bottom: 0.75rem;
+  color: var(--color-heading);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.profile-fact-row {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.profile-fact-row label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.profile-certification-list .profile-fact-row:last-child {
+  border-bottom: 0;
+}
+
+.field-help {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.profile-data-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  border-radius: 10px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-soft);
+}
+
+.profile-data-note span:first-child {
+  color: var(--color-primary);
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
 .upload-card {
   display: grid;
   gap: 1rem;
@@ -3217,6 +3276,15 @@ body {
 @media (min-width: 600px) {
   .business-details-form {
     padding: 1.5rem;
+  }
+
+  .reusable-facts-form {
+    padding: 1.5rem;
+  }
+
+  .profile-fact-row {
+    grid-template-columns: minmax(0, 2fr) minmax(150px, 1fr);
+    align-items: end;
   }
 
   .upload-card {

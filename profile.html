@@ -20,7 +20,7 @@
       <header class="page-heading">
         <p class="eyebrow">פרופיל העסק</p>
         <h1>פרטי העסק</h1>
-        <p>פרטי זיהוי וקשר של העסק. השלמה ועריכה של נתונים להשוואה מתבצעות ישירות במסך המכרז הרלוונטי.</p>
+        <p>מידע קבוע ונתונים חוזרים שיכולים לשמש לבדיקת התאמה ביותר ממכרז אחד.</p>
       </header>
       <div id="profile-message" class="status-box" data-state="working" aria-live="polite"><span aria-hidden="true">…</span><span>טוען את פרטי העסק…</span></div>
       <section id="business-details-section" class="profile-section" hidden aria-labelledby="business-details-title">
@@ -33,6 +33,45 @@
           <label for="phone">טלפון<input id="phone" name="phone" type="tel" autocomplete="tel"></label>
           <label for="email">אימייל<input id="email" name="email" type="email" autocomplete="email"></label>
           <button id="save-business-details" class="button button-primary" type="submit">שמור פרטי עסק</button>
+        </form>
+      </section>
+      <section id="reusable-facts-section" class="profile-section" hidden aria-labelledby="reusable-facts-title">
+        <header class="section-heading"><div><p class="eyebrow">לשימוש חוזר</p><h2 id="reusable-facts-title">נתוני עסק למכרזים</h2></div></header>
+        <p class="section-explanation">הנתונים האלה מתארים את העסק עצמו ויכולים לשמש בבדיקת מכרזים שונים. תשובה או התחייבות למכרז מסוים נשמרת רק בתוך אותו מכרז.</p>
+        <form id="reusable-facts-form" class="card reusable-facts-form">
+          <fieldset class="profile-fact-group">
+            <legend>נתונים פיננסיים</legend>
+            <div class="profile-fact-row profile-fact-row-revenue">
+              <label for="annual-revenue">מחזור הכנסות שנתי (ש״ח)<input id="annual-revenue" name="annual_revenue" type="number" min="0" step="1" inputmode="numeric" placeholder="לדוגמה: 5000000"></label>
+              <label for="annual-revenue-period">שנת דיווח<input id="annual-revenue-period" name="annual_revenue_period" type="number" min="2000" max="2100" step="1" inputmode="numeric" placeholder="לדוגמה: 2025"></label>
+            </div>
+            <p class="field-help">הסכום נשמר יחד עם שנת הדיווח, כדי שלא יושווה בטעות לתקופה אחרת.</p>
+          </fieldset>
+
+          <fieldset class="profile-fact-group">
+            <legend>אישורים ורישיונות</legend>
+            <p class="field-help">בחרו „לא ידוע” כשאין אישור ודאי. רישיון או תקן ייחודי נוסף יתווסף מתוך המכרז שבו הוא נדרש.</p>
+            <div class="profile-certification-list">
+              <div class="profile-fact-row">
+                <label for="public-entities-compliant">עמידה בחוק עסקאות גופים ציבוריים<select id="public-entities-compliant" name="public_entities_transactions_compliant"><option value="">לא ידוע</option><option value="true">כן</option><option value="false">לא</option></select></label>
+                <label for="public-entities-valid-until">תוקף האישור<input id="public-entities-valid-until" name="public_entities_transactions_compliant_valid_until" type="date"></label>
+              </div>
+              <div class="profile-fact-row">
+                <label for="legal-licenses-valid">כל הרישיונות וההיתרים לפי דין תקפים<select id="legal-licenses-valid" name="required_legal_licenses_valid"><option value="">לא ידוע</option><option value="true">כן</option><option value="false">לא</option></select></label>
+                <label for="legal-licenses-valid-until">תוקף<input id="legal-licenses-valid-until" name="required_legal_licenses_valid_valid_until" type="date"></label>
+              </div>
+              <div class="profile-fact-row">
+                <label for="food-service-licenses">רישיונות הסעדה ומכירת מזון תקפים<select id="food-service-licenses" name="valid_food_service_licenses"><option value="">לא ידוע</option><option value="true">כן</option><option value="false">לא</option></select></label>
+                <label for="food-service-licenses-valid-until">תוקף<input id="food-service-licenses-valid-until" name="valid_food_service_licenses_valid_until" type="date"></label>
+              </div>
+              <div class="profile-fact-row">
+                <label for="kosher-certificate">תעודת כשרות תקפה<select id="kosher-certificate" name="valid_kosher_certificate"><option value="">לא ידוע</option><option value="true">כן</option><option value="false">לא</option></select></label>
+                <label for="kosher-certificate-valid-until">תוקף<input id="kosher-certificate-valid-until" name="valid_kosher_certificate_valid_until" type="date"></label>
+              </div>
+            </div>
+          </fieldset>
+          <aside class="profile-data-note"><span aria-hidden="true">↻</span><span>שינוי נתון ששימש מכרז קיים יסמן את תוצאותיו כלא מעודכנות. במסך המכרז יהיה צורך ללחוץ „עדכן את בדיקת ההתאמה”.</span></aside>
+          <button id="save-reusable-facts" class="button button-primary" type="submit">שמור נתוני עסק</button>
         </form>
       </section>
     </main>
