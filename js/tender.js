@@ -43,7 +43,7 @@ import { summarizeCustomerResponses } from "../lib/customer-response-summary.js"
 import {
   buildTenderCategoryIndex,
   categoryKeysForSubtree,
-  pilotCategoriesEnabled,
+  tenderCategoriesEnabled,
 } from "../lib/tender-categories.js";
 
 const params = new URLSearchParams(location.search);
@@ -246,7 +246,7 @@ function metadataDateCard(item) {
   card.className = "metadata-item metadata-date-item";
   if (/הגשה/.test(item.label)) card.classList.add("is-submission-deadline");
   const title = document.createElement("h4");
-  title.textContent = item.label;
+  title.textContent = translateToHebrew(item.label);
   const value = document.createElement("strong");
   value.append(bidi(item.iso ? formatDeadline(item.iso) : "לא חולץ"));
   card.append(title, value, metadataSource(item.source));
@@ -257,7 +257,7 @@ function guaranteeCard(item) {
   const card = document.createElement("article");
   card.className = "metadata-item guarantee-item";
   const title = document.createElement("h4");
-  title.textContent = item.type;
+  title.textContent = translateToHebrew(item.type);
   const grid = document.createElement("dl");
   grid.className = "metadata-definition-grid";
   const values = [
@@ -283,13 +283,15 @@ function renderTenderMetadata() {
   const summaryAvailability = document.querySelector("#executive-summary-availability");
   summaryAvailability.dataset.available = String(hasSummary);
   summaryAvailability.textContent = hasSummary ? "✓ חולץ" : "? לא חולץ";
-  document.querySelector("#executive-summary-text").textContent = metadata.executiveSummary || "סיכום מנהלים לא חולץ מהמסמך.";
+  document.querySelector("#executive-summary-text").textContent = metadata.executiveSummary
+    ? translateToHebrew(metadata.executiveSummary)
+    : "סיכום מנהלים לא חולץ מהמסמך.";
   const notesSection = document.querySelector("#metadata-notes-section");
   const notesList = document.querySelector("#metadata-notes-list");
   notesSection.hidden = metadata.notes.length === 0;
   notesList.replaceChildren(...metadata.notes.map((note) => {
     const item = document.createElement("li");
-    item.textContent = note;
+    item.textContent = translateToHebrew(note);
     return item;
   }));
 
@@ -746,12 +748,12 @@ function matchesWorkflowView(requirement, childrenByParent) {
   return true;
 }
 
-function categoryPilotIsActive() {
-  return Boolean(tender && pilotCategoriesEnabled(tender.id));
+function categoryViewIsActive() {
+  return Boolean(tender && tenderCategoriesEnabled(tender.id));
 }
 
 function requirementMatchesActiveCategory(requirement) {
-  if (!categoryPilotIsActive() || !activeTenderCategory) return true;
+  if (!categoryViewIsActive() || !activeTenderCategory) return true;
   return tenderCategoryIndex.categoryByRequirementId.get(requirement.requirement_id) === activeTenderCategory;
 }
 
@@ -797,8 +799,8 @@ function categoryForRequirementId(requirementId, requirements, childrenByParent)
 }
 
 function renderTenderCategoryPicker(requirements, childrenByParent) {
-  const section = document.querySelector("#tender-category-pilot");
-  if (!categoryPilotIsActive() || tenderCategoryIndex.groups.length === 0) {
+  const section = document.querySelector("#tender-categories");
+  if (!categoryViewIsActive() || tenderCategoryIndex.groups.length === 0) {
     section.hidden = true;
     activeTenderCategory = null;
     return;
@@ -865,7 +867,7 @@ function requirementCard(requirement, childrenByParent, ancestorIds = new Set())
   actionChip.className = "chip chip-workflow";
   actionChip.textContent = WORKFLOW_GROUP_META[workflow.group].label;
   chips.append(actionChip);
-  const categoryLabel = translateCategory(requirement.category);
+  const categoryLabel = displayCategoryLabel(requirement.category);
   const typeLabel = translateRequirementType(requirement.requirement_type);
   for (const value of [categoryLabel, typeLabel]) {
     if (!value) continue;
@@ -1131,7 +1133,7 @@ function openNextRequirement() {
   for (const button of document.querySelectorAll("[data-filter]")) {
     button.classList.toggle("is-active", button.dataset.filter === "all");
   }
-  if (categoryPilotIsActive()) {
+  if (categoryViewIsActive()) {
     const requirements = tender.requirements ?? [];
     const { childrenByParent } = organizeRequirements(requirements);
     tenderCategoryIndex = buildTenderCategoryIndex(requirements, tender.regions?.regions ?? []);
@@ -1165,7 +1167,7 @@ function revealRequirementById(requirementId) {
   for (const button of document.querySelectorAll("[data-filter]")) {
     button.classList.toggle("is-active", button.dataset.filter === "all");
   }
-  if (categoryPilotIsActive()) {
+  if (categoryViewIsActive()) {
     const requirements = tender.requirements ?? [];
     const { childrenByParent } = organizeRequirements(requirements);
     tenderCategoryIndex = buildTenderCategoryIndex(requirements, tender.regions?.regions ?? []);
@@ -1219,7 +1221,7 @@ function renderOverview() {
       activeWorkflowView = WORKFLOW_VIEW.ATTENTION;
       activeFilter = "critical";
       visibleRootLimit = 8;
-      if (categoryPilotIsActive()) {
+      if (categoryViewIsActive()) {
         const requirements = tender.requirements ?? [];
         const { childrenByParent } = organizeRequirements(requirements);
         tenderCategoryIndex = buildTenderCategoryIndex(requirements, tender.regions?.regions ?? []);
@@ -1264,13 +1266,13 @@ function renderFitAnalysis() {
     const displaySummary = buildFitAnalysisDisplaySummary(tender.results);
     const summary = document.createElement("p");
     summary.className = "fit-summary";
-    summary.textContent = displaySummary.summary;
+    summary.textContent = translateToHebrew(displaySummary.summary);
     contentElement.append(summary);
     if (displaySummary.nextStep) {
       const nextStep = document.createElement("p");
       nextStep.className = "fit-next-step";
       const strong = document.createElement("strong");
-      strong.textContent = displaySummary.nextStep;
+      strong.textContent = translateToHebrew(displaySummary.nextStep);
       nextStep.append(strong);
       contentElement.append(nextStep);
     }
@@ -1291,9 +1293,9 @@ function renderFitAnalysis() {
       for (const item of items) {
         const listItem = document.createElement("li");
         const itemTitle = document.createElement("strong");
-        itemTitle.textContent = userFacingAutomationText(item.title);
+        itemTitle.textContent = translateToHebrew(userFacingAutomationText(item.title));
         const explanation = document.createElement("span");
-        explanation.textContent = userFacingAutomationText(item.explanation);
+        explanation.textContent = translateToHebrew(userFacingAutomationText(item.explanation));
         listItem.append(itemTitle, explanation);
         list.append(listItem);
       }
@@ -1370,7 +1372,7 @@ function renderSourceTables() {
     const details = document.createElement("details"); details.className = "card source-table-card";
     const summary = document.createElement("summary");
     const pages = [...new Set(group.requirements.map((item) => item.source_page).filter(Boolean))];
-    summary.textContent = `${group.title} · ${group.requirements.length} פריטים${pages.length ? ` · עמודים ${pages.join(", ")}` : ""}`;
+    summary.textContent = `${displayCategoryLabel(group.title)} · ${group.requirements.length} פריטים${pages.length ? ` · עמודים ${pages.join(", ")}` : ""}`;
     const scroll = document.createElement("div"); scroll.className = "table-scroll";
     const table = document.createElement("table"); table.className = "extracted-table";
     const head = document.createElement("thead");

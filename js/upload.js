@@ -3,6 +3,7 @@ import { processTender } from "./pipeline.js";
 import { findLatestCompletedTender } from "./tender-selection.js";
 import { validateUploadFile } from "./upload-validation.js";
 import { applyProcessingEvent, buildProcessingStatus } from "../lib/processing-status.js";
+import { translateToHebrew } from "./fact-values.js";
 
 const fileInput = document.querySelector("#pdf-file");
 const dropZone = document.querySelector("#drop-zone");
@@ -144,7 +145,7 @@ function progress(event) {
   currentProcessing = applyProcessingEvent(currentProcessing, event);
   const view = renderProcessingStatus();
   if (event.step === "extract" && event.regionTitle && event.state !== "done") {
-    progressText.textContent = `${view.phases[2].label} — ${view.phases[2].detail ?? ""}: ${event.regionTitle}`;
+    progressText.textContent = `${view.phases[2].label} — ${view.phases[2].detail ?? ""}: ${translateToHebrew(event.regionTitle)}`;
   }
 }
 

@@ -99,6 +99,20 @@ test("translates English requirement text and explanations to natural Hebrew", a
     "נתון העסק עומד בתנאי שנבדק אוטומטית."
   );
   assert.equal(
+    translateToHebrew("All ISO 8601 dates and times are assumed to be in Israel local time."),
+    "כל התאריכים והשעות בפורמט ISO 8601 מוצגים לפי שעון ישראל."
+  );
+  assert.equal(
+    translateToHebrew("The performance guarantee (ערבות ביצוע) is defined as 5% of the annual contract volume, but not less than 300,000 ILS. The minimum amount of 300,000 ILS was extracted."),
+    "ערבות הביצוע נקבעה בשיעור 5% מההיקף השנתי של ההתקשרות, אך לא פחות מ־300,000 ש״ח. סכום המינימום שחולץ הוא 300,000 ש״ח."
+  );
+  assert.equal(
+    translateToHebrew("The validity of the performance guarantee is stated as 90 days after the end of the contract period (90 יום לאחר תום תקופת ההתקשרות)."),
+    "תוקף ערבות הביצוע הוא 90 יום לאחר תום תקופת ההתקשרות."
+  );
+  assert.equal(translateToHebrew("Operational Requirements"), "דרישות תפעוליות");
+  assert.equal(translateToHebrew("SOW - Core Operations, SLA, and Penalties"), "תפעול, רמת שירות וקנסות");
+  assert.equal(
     translateToHebrew("הדרישה נבדקה בהצלחה"),
     "הדרישה נבדקה בהצלחה"
   );
@@ -108,6 +122,7 @@ test("translates English requirement text and explanations to natural Hebrew", a
   assert.equal(translateSourceType("table"), "טבלה");
   assert.equal(translateRequirementType("threshold"), "תנאי סף");
   assert.equal(translateCategory("guarantee"), "ערבויות");
+  assert.equal(translateCategory("Operational Requirements"), "דרישות תפעוליות");
 });
 
 

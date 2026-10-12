@@ -7,6 +7,7 @@ import {
 } from "../lib/checklist.js";
 import { supabase } from "./supabase.js";
 import { calculateUrgency, formatDeadline } from "./urgency.js";
+import { translateToHebrew } from "./fact-values.js";
 
 const params = new URLSearchParams(location.search);
 const tenderId = params.get("id");
@@ -17,6 +18,10 @@ const mobileList = document.querySelector("#checklist-mobile-list");
 const tableBody = document.querySelector("#checklist-table-body");
 let tender = null;
 let saving = false;
+
+function displayItemName(item) {
+  return translateToHebrew(item.name);
+}
 
 const STATUS_META = Object.freeze({
   [CHECKLIST_STATUS.OPEN]: { icon: "○", label: "לא התחיל" },
@@ -43,7 +48,7 @@ function createCheckbox(item, suffix) {
   checkbox.checked = item.done;
   checkbox.dataset.itemId = item.item_id;
   checkbox.id = `done-${suffix}-${item.item_id}`;
-  checkbox.setAttribute("aria-label", `סימון ${item.name} כהושלם`);
+  checkbox.setAttribute("aria-label", `סימון ${displayItemName(item)} כהושלם`);
   checkbox.addEventListener("change", () => saveItem(item.item_id, { done: checkbox.checked }));
   const copy = document.createElement("span");
   copy.textContent = item.done ? "הושלם" : "סמן כהושלם";
@@ -56,11 +61,11 @@ function createStatusSelect(item, suffix) {
   wrapper.className = "checklist-status-label";
   const hiddenLabel = document.createElement("span");
   hiddenLabel.className = "visually-hidden";
-  hiddenLabel.textContent = `סטטוס עבור ${item.name}`;
+  hiddenLabel.textContent = `סטטוס עבור ${displayItemName(item)}`;
   const select = document.createElement("select");
   select.id = `status-${suffix}-${item.item_id}`;
   select.dataset.itemId = item.item_id;
-  select.setAttribute("aria-label", `סטטוס עבור ${item.name}`);
+  select.setAttribute("aria-label", `סטטוס עבור ${displayItemName(item)}`);
   for (const [value, meta] of Object.entries(STATUS_META)) select.append(new Option(`${meta.icon} ${meta.label}`, value));
   select.value = item.status;
   select.addEventListener("change", () => saveItem(item.item_id, { status: select.value }));
@@ -80,7 +85,7 @@ function renderMobileItem(item) {
   card.className = "card checklist-item-card";
   card.dataset.status = item.status;
   const heading = document.createElement("h3");
-  heading.textContent = item.name;
+  heading.textContent = displayItemName(item);
   const state = document.createElement("span");
   state.className = "checklist-item-state";
   state.textContent = `${STATUS_META[item.status].icon} ${STATUS_META[item.status].label}`;
@@ -102,7 +107,7 @@ function renderTableRow(item) {
   doneCell.append(createCheckbox(item, "table"));
   const nameCell = document.createElement("th");
   nameCell.scope = "row";
-  nameCell.textContent = item.name;
+  nameCell.textContent = displayItemName(item);
   const statusCell = document.createElement("td");
   statusCell.append(createStatusSelect(item, "table"));
   const sourceCell = document.createElement("td");

@@ -1,17 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  CATEGORY_PILOT_TENDER_ID,
   buildTenderCategoryIndex,
   categoryKeysForSubtree,
-  pilotCategoriesEnabled,
+  tenderCategoriesEnabled,
   tenderCategoryForRequirement,
 } from "../lib/tender-categories.js";
 
-test("category pilot is restricted to the approved tender", () => {
-  assert.equal(pilotCategoriesEnabled(CATEGORY_PILOT_TENDER_ID), true);
-  assert.equal(pilotCategoriesEnabled("another-tender"), false);
-  assert.equal(pilotCategoriesEnabled(null), false);
+test("category navigation is enabled for every saved tender", () => {
+  assert.equal(tenderCategoriesEnabled("fada3e4c-7825-4bd2-aeef-63277975eef2"), true);
+  assert.equal(tenderCategoriesEnabled("another-tender"), true);
+  assert.equal(tenderCategoriesEnabled(""), false);
+  assert.equal(tenderCategoriesEnabled(null), false);
 });
 
 test("source categories become tender-specific groups in document order", () => {

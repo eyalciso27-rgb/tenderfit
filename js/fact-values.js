@@ -247,6 +247,36 @@ export function questionForFact(key, fact = null, registryFact = null) {
 }
 
 export const EXPLANATION_TRANSLATIONS = Object.freeze({
+  "all iso 8601 dates and times are assumed to be in israel local time.": "כל התאריכים והשעות בפורמט ISO 8601 מוצגים לפי שעון ישראל.",
+  "operational requirements": "דרישות תפעוליות",
+  "menu composition": "הרכב התפריט",
+  "evaluation criteria": "קריטריונים לניקוד",
+  "qualitative": "איכותי",
+  "introduction, financials, and pricing rules": "מבוא, כספים וכללי תמחור",
+  "threshold requirements": "תנאי סף",
+  "quality evaluation metrics": "מדדי הערכת איכות",
+  "conditions for contract signing": "תנאים לחתימה על ההסכם",
+  "tender schedule and submission instructions": "לוח זמנים והנחיות להגשת ההצעה",
+  "general tender rules": "כללים כלליים של המכרז",
+  "bid submission booklet (forms)": "חוברת הגשת ההצעה והטפסים",
+  "sow - core operations, sla, and penalties": "תפעול, רמת שירות וקנסות",
+  "sow - meat kitchen menu specifications": "מפרט תפריט המטבח הבשרי",
+  "sow - meat kitchen equipment inventory": "מלאי ציוד המטבח הבשרי",
+  "sow - dairy kitchen, cafeteria, and meeting catering": "מטבח חלבי, קפיטריה וכיבוד לישיבות",
+  "sow - dairy kitchen equipment inventory": "מלאי ציוד המטבח החלבי",
+  "renovation period instructions": "הנחיות לתקופת השיפוץ",
+  "additional operational instructions": "הנחיות תפעוליות נוספות",
+  "contract agreement": "הסכם ההתקשרות",
+  "performance guarantee": "ערבות ביצוע",
+  "insurance requirements": "דרישות ביטוח",
+  "confidentiality and conflict of interest declaration": "הצהרת סודיות והיעדר ניגוד עניינים",
+  "indexation rules": "כללי הצמדה",
+  "cybersecurity and information security": "סייבר ואבטחת מידע",
+  "labor rights and employee payments": "זכויות עובדים ותשלומים לעובדים",
+  "general requirements": "דרישות כלליות",
+  "user management": "ניהול משתמשים",
+  "sms subsystem": "מערכת מסרוני SMS",
+  "newsletter subsystem": "מערכת דיוור",
   "the requirement is not automatically checked against the business profile.": "הדרישה אינה נבדקת אוטומטית מול פרופיל העסק.",
   "the requirement was flagged for manual review and is not automatically approved.": "הדרישה סומנה לבדיקה ידנית ואינה מאושרת אוטומטית.",
   "סוג המידע אינו נתמך אוטומטית ב-mvp.": "סוג המידע אינו נתמך אוטומטית ב-MVP.",
@@ -297,6 +327,25 @@ export function translateToHebrew(text) {
   const normalized = trimmed.toLowerCase().replace(/\s+/g, " ");
   if (EXPLANATION_TRANSLATIONS[normalized]) {
     return EXPLANATION_TRANSLATIONS[normalized];
+  }
+
+  if (/^all iso 8601 dates and times are assumed to be in israel local time\.?$/i.test(trimmed)) {
+    return "כל התאריכים והשעות בפורמט ISO 8601 מוצגים לפי שעון ישראל.";
+  }
+
+  const performanceGuaranteeDefinition = trimmed.match(
+    /^the performance guarantee \(ערבות ביצוע\) is defined as ([\d.]+)% of the annual contract volume, but not less than ([\d,]+) (?:ils|nis)\. the minimum amount of ([\d,]+) (?:ils|nis) was extracted\.?$/i,
+  );
+  if (performanceGuaranteeDefinition) {
+    const [, percent, minimum, extracted] = performanceGuaranteeDefinition;
+    return `ערבות הביצוע נקבעה בשיעור ${percent}% מההיקף השנתי של ההתקשרות, אך לא פחות מ־${minimum} ש״ח. סכום המינימום שחולץ הוא ${extracted} ש״ח.`;
+  }
+
+  const performanceGuaranteeValidity = trimmed.match(
+    /^the validity of the performance guarantee is stated as (\d+) days after the end of the contract period(?: \([^)]*\))?\.?$/i,
+  );
+  if (performanceGuaranteeValidity) {
+    return `תוקף ערבות הביצוע הוא ${performanceGuaranteeValidity[1]} יום לאחר תום תקופת ההתקשרות.`;
   }
 
   // If already Hebrew and doesn't match known English requirement phrases
@@ -422,6 +471,10 @@ export const REQUIREMENT_TYPE_TRANSLATIONS = Object.freeze({
   validity: "תוקף",
   mandatory: "חובה",
   evaluation: "ניקוד",
+  "evaluation criteria": "קריטריונים לניקוד",
+  qualitative: "איכותי",
+  "menu composition": "הרכב התפריט",
+  "operational requirements": "דרישות תפעוליות",
 });
 
 export const CATEGORY_TRANSLATIONS = Object.freeze({
@@ -441,6 +494,10 @@ export const CATEGORY_TRANSLATIONS = Object.freeze({
   forms: "טפסים והצהרות",
   post_award: "התחייבויות לאחר זכייה",
   other: "כללי",
+  operational_requirements: "דרישות תפעוליות",
+  menu_composition: "הרכב התפריט",
+  evaluation_criteria: "קריטריונים לניקוד",
+  qualitative: "איכותי",
 });
 
 export function translateScope(scope) {

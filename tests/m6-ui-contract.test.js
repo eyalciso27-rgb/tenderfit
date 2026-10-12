@@ -92,12 +92,20 @@ test("the M6 tender page is a guided workspace instead of two long duplicate rep
   assert.match(styles, /M6 guided tender workspace/);
 });
 
-test("the approved tender has a compact source-based category pilot without another AI call", () => {
-  assert.match(tenderHtml, /id="tender-category-pilot"/);
+test("every tender has compact source-based category navigation without another AI call", () => {
+  assert.match(tenderHtml, /id="tender-categories"/);
   assert.match(tenderHtml, /id="tender-category-select"/);
   assert.match(tenderHtml, /הנושאים מבוססים על הסיווג שכבר חולץ מהמכרז/);
-  assert.match(tenderScript, /pilotCategoriesEnabled\(tender\.id\)/);
+  assert.match(tenderScript, /tenderCategoriesEnabled\(tender\.id\)/);
   assert.match(tenderScript, /buildTenderCategoryIndex\(requirements, tender\.regions\?\.regions/);
   assert.doesNotMatch(tenderScript, /runPipelineStepUntilDone\("categor/i);
-  assert.match(styles, /\.tender-category-pilot/);
+  assert.match(styles, /\.tender-categories/);
+});
+
+test("generated tender summaries and labels pass through the Hebrew display layer", () => {
+  assert.match(tenderScript, /translateToHebrew\(metadata\.executiveSummary\)/);
+  assert.match(tenderScript, /translateToHebrew\(note\)/);
+  assert.match(tenderScript, /translateToHebrew\(item\.label\)/);
+  assert.match(tenderScript, /translateToHebrew\(item\.type\)/);
+  assert.match(tenderScript, /displayCategoryLabel\(requirement\.category\)/);
 });

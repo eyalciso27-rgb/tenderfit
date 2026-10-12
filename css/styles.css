@@ -2409,7 +2409,7 @@ blockquote {
   box-shadow: 0 1px 4px rgba(11, 47, 74, 0.12);
 }
 
-.tender-category-pilot {
+.tender-categories {
   display: grid;
   gap: 0.65rem;
   padding: 0.9rem;
@@ -2418,23 +2418,23 @@ blockquote {
   background: #f2fbf8;
 }
 
-.tender-category-pilot[hidden] {
+.tender-categories[hidden] {
   display: none;
 }
 
-.tender-category-pilot > header {
+.tender-categories > header {
   display: flex;
   align-items: start;
   justify-content: space-between;
   gap: 0.75rem;
 }
 
-.tender-category-pilot h3,
-.tender-category-pilot p {
+.tender-categories h3,
+.tender-categories p {
   margin: 0;
 }
 
-.tender-category-pilot label {
+.tender-categories label {
   color: var(--color-text-secondary);
   font-size: 0.86rem;
   font-weight: 700;
