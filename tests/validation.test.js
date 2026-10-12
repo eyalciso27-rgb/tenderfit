@@ -64,6 +64,29 @@ test("an atomic all_of requirement is not mistaken for a structural parent", () 
   assert.equal(result.semanticErrors.includes("structural_parent_comparable:insurance"), false);
 });
 
+test("a source section is optional when page and quote are present", () => {
+  const schema = { type: "object", properties: { requirements: { type: "array", items: { type: "object" } } }, required: ["requirements"] };
+  const result = validateRequirements([{
+    requirement_id: "general", parent_requirement_id: null, code_comparable: false,
+    source_page: 2, source_section: null, source_quote: "נדרש לעמוד בתנאי המכרז",
+    value: null, business_fact_type: null, requires_manual_review: true,
+  }], schema);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.semanticErrors, []);
+  assert.ok(result.warnings.includes("missing_source_section:general"));
+});
+
+test("a source page and quote remain mandatory", () => {
+  const schema = { type: "object", properties: { requirements: { type: "array", items: { type: "object" } } }, required: ["requirements"] };
+  const result = validateRequirements([{
+    requirement_id: "unsupported", parent_requirement_id: null, code_comparable: false,
+    source_page: null, source_section: "כללי", source_quote: null,
+    value: null, business_fact_type: null, requires_manual_review: true,
+  }], schema);
+  assert.equal(result.ok, false);
+  assert.ok(result.semanticErrors.includes("missing_source:unsupported"));
+});
+
 test("a real structural parent is conservatively normalized before validation", () => {
   const input = [
     { requirement_id: "parent", parent_requirement_id: null, code_comparable: true },
