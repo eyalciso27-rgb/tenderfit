@@ -36,5 +36,7 @@ test("F32 repository template stays inactive and contains no credentials or real
   assert.match(workflow, /CHANGE_TO_APPROVED_TEST_EMAIL/);
   assert.doesNotMatch(workflow, /eyalicohen@gmail\.com/);
   assert.doesNotMatch(workflow, /"credentials"\s*:/);
+  assert.match(workflow, /n8n-nodes-base\.emailSend/);
+  assert.doesNotMatch(workflow, /n8n-nodes-base\.gmail/);
   assert.match(workflow, /reminder_sent_at/);
 });

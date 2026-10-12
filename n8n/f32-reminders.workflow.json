@@ -15,7 +15,10 @@
       },
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-720, 0],
+      "position": [
+        -720,
+        0
+      ],
       "id": "c13f98c5-d5cb-4cea-b7d8-f32schedule01",
       "name": "פעם ביום"
     },
@@ -27,7 +30,10 @@
       },
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
-      "position": [-500, 0],
+      "position": [
+        -500,
+        0
+      ],
       "id": "c13f98c5-d5cb-4cea-b7d8-f32supabase1",
       "name": "קריאת מכרזים"
     },
@@ -37,24 +43,31 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-260, 0],
+      "position": [
+        -260,
+        0
+      ],
       "id": "c13f98c5-d5cb-4cea-b7d8-f32code0001",
       "name": "בניית תזכורות"
     },
     {
       "parameters": {
-        "sendTo": "CHANGE_TO_APPROVED_TEST_EMAIL@example.com",
+        "fromEmail": "TenderFit <eyal@it-israel.co.il>",
+        "toEmail": "CHANGE_TO_APPROVED_TEST_EMAIL@example.com",
         "subject": "={{ $json.subject }}",
-        "emailType": "text",
-        "message": "={{ $json.message }}",
+        "emailFormat": "text",
+        "text": "={{ $json.message }}",
         "options": {
           "appendAttribution": false
         }
       },
-      "type": "n8n-nodes-base.gmail",
+      "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [-20, 0],
-      "id": "c13f98c5-d5cb-4cea-b7d8-f32gmail001",
+      "position": [
+        -20,
+        0
+      ],
+      "id": "c13f98c5-d5cb-4cea-b7d8-f32email0001",
       "name": "שליחת מייל בדיקה"
     },
     {
@@ -84,7 +97,10 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [220, 0],
+      "position": [
+        220,
+        0
+      ],
       "id": "c13f98c5-d5cb-4cea-b7d8-f32if000001",
       "name": "נדרש עדכון מועד שליחה"
     },
@@ -117,26 +133,70 @@
       },
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
-      "position": [480, -80],
+      "position": [
+        480,
+        -80
+      ],
       "id": "c13f98c5-d5cb-4cea-b7d8-f32supabase2",
       "name": "שמירת reminder_sent_at"
     }
   ],
   "connections": {
     "פעם ביום": {
-      "main": [[{"node": "קריאת מכרזים", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "קריאת מכרזים",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "קריאת מכרזים": {
-      "main": [[{"node": "בניית תזכורות", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "בניית תזכורות",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "בניית תזכורות": {
-      "main": [[{"node": "שליחת מייל בדיקה", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "שליחת מייל בדיקה",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "שליחת מייל בדיקה": {
-      "main": [[{"node": "נדרש עדכון מועד שליחה", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "נדרש עדכון מועד שליחה",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "נדרש עדכון מועד שליחה": {
-      "main": [[{"node": "שמירת reminder_sent_at", "type": "main", "index": 0}], []]
+      "main": [
+        [
+          {
+            "node": "שמירת reminder_sent_at",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
     }
   },
   "pinData": {},
