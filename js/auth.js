@@ -9,6 +9,7 @@ const loginView = document.querySelector("#login-view");
 const appView = document.querySelector("#app-view");
 const loginForm = document.querySelector("#login-form");
 const loginButton = document.querySelector("#login-button");
+const googleLoginButton = document.querySelector("#google-login-button");
 const loginMessage = document.querySelector("#login-message");
 const logoutButton = document.querySelector("#logout-button");
 const businessName = document.querySelector("#business-name");
@@ -28,6 +29,25 @@ function isolate(value) {
 
 function setLoginMessage(message) {
   loginMessage.textContent = message;
+}
+
+function setLoginBusy(isBusy) {
+  loginButton.disabled = isBusy;
+  googleLoginButton.disabled = isBusy;
+  loginForm.setAttribute("aria-busy", String(isBusy));
+}
+
+function googleRedirectUrl() {
+  const redirectUrl = new URL("index.html", window.location.href);
+  redirectUrl.search = "";
+  redirectUrl.hash = "";
+  return redirectUrl.href;
+}
+
+function hasOAuthError() {
+  const query = new URLSearchParams(window.location.search);
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  return query.has("error") || query.has("error_description") || hash.has("error") || hash.has("error_description");
 }
 
 function setRunStatus(state, icon, message) {
@@ -134,20 +154,41 @@ loginForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  loginButton.disabled = true;
+  setLoginBusy(true);
   setLoginMessage("");
   const formData = new FormData(loginForm);
   const { error } = await supabase.auth.signInWithPassword({
     email: String(formData.get("email") ?? "").trim(),
     password: String(formData.get("password") ?? ""),
   });
-  loginButton.disabled = false;
+  setLoginBusy(false);
 
   if (error) {
     setLoginMessage("האימייל או הסיסמה אינם נכונים.");
     return;
   }
   loginForm.reset();
+});
+
+googleLoginButton.addEventListener("click", async () => {
+  if (!supabase) {
+    setLoginMessage("יש לעדכן את js/config.js בפרטי Supabase ו־Vercel.");
+    return;
+  }
+
+  setLoginBusy(true);
+  setLoginMessage("מעבירים להתחברות מאובטחת באמצעות Google…");
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: googleRedirectUrl(),
+    },
+  });
+
+  if (error) {
+    setLoginBusy(false);
+    setLoginMessage("לא הצלחנו להתחיל את ההתחברות באמצעות Google. יש לנסות שוב.");
+  }
 });
 
 logoutButton.addEventListener("click", async () => {
@@ -197,6 +238,9 @@ if (!supabase) {
   setLoginMessage("יש לעדכן את js/config.js בפרטי Supabase ו־Vercel.");
 } else {
   const { data } = await supabase.auth.getSession();
+  if (!data.session && hasOAuthError()) {
+    setLoginMessage("הכניסה באמצעות Google לא הושלמה. יש לנסות שוב.");
+  }
   await refreshSessionView(data.session);
   supabase.auth.onAuthStateChange((_event, session) => {
     setTimeout(() => refreshSessionView(session), 0);
