@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const screens = ["index.html", "upload.html", "profile.html", "tender.html", "checklist.html"];
+const screens = ["index.html", "upload.html", "profile.html", "tender.html", "checklist.html", "tenders.html"];
 
 for (const screen of screens) {
   test(`${screen} has the basic Hebrew accessibility landmarks`, async () => {

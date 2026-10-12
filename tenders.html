@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="רשימת המכרזים של העסק ב-TenderFit">
+    <title>TenderFit | רשימת מכרזים</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand brand-link" href="tenders.html"><span class="brand-mark" aria-hidden="true">Y</span><span>TenderFit</span></a>
+      <nav class="header-actions" aria-label="ניווט ראשי"><a class="button button-text is-active" href="tenders.html" aria-current="page"><span aria-hidden="true">▤</span> מכרזים</a><a class="button button-text" href="upload.html"><span aria-hidden="true">↥</span> מכרז חדש</a><a class="button button-text" href="profile.html"><span aria-hidden="true">♙</span> פרופיל העסק</a></nav>
+      <div class="account-actions"><button id="logout-button" class="button button-text" type="button">התנתק</button><span class="user-avatar" aria-hidden="true">מ</span></div>
+    </header>
+    <main class="wide-content tenders-page">
+      <header class="page-heading tenders-heading">
+        <div><p class="eyebrow">כל המכרזים במקום אחד</p><h1>רשימת מכרזים</h1><p>בחרו מכרז כדי להמשיך בבדיקת הדרישות ובהכנת ההגשה.</p></div>
+        <a class="button button-primary" href="upload.html"><span aria-hidden="true">＋</span> מכרז חדש</a>
+      </header>
+
+      <div id="tenders-message" class="status-box" data-state="working" aria-live="polite"><span aria-hidden="true">…</span><span>טוען את המכרזים…</span></div>
+      <section id="tenders-content" hidden aria-labelledby="tenders-view-title">
+        <h2 id="tenders-view-title" class="visually-hidden">מכרזים לפי מצב</h2>
+        <div class="tender-list-toolbar" role="tablist" aria-label="מצב המכרזים">
+          <button id="active-tenders-tab" class="list-view-chip is-active" type="button" role="tab" aria-selected="true" data-list-view="active">פעילים (<bdi id="active-tenders-count">0</bdi>)</button>
+          <button id="ended-tenders-tab" class="list-view-chip" type="button" role="tab" aria-selected="false" data-list-view="ended">הסתיימו (<bdi id="ended-tenders-count">0</bdi>)</button>
+        </div>
+
+        <div id="tenders-empty" class="card tender-list-empty" hidden>
+          <span aria-hidden="true">▤</span>
+          <h2 id="tenders-empty-title">אין מכרזים פעילים</h2>
+          <p id="tenders-empty-copy">אפשר לעבור למכרזים שהסתיימו או להעלות מכרז חדש.</p>
+          <a class="button button-primary" href="upload.html">+ מכרז חדש</a>
+        </div>
+
+        <div id="tender-cards" class="tender-list-cards" aria-live="polite"></div>
+        <div id="tender-table-wrap" class="tender-list-table-wrap">
+          <table class="tender-list-table">
+            <thead><tr><th>שם המכרז</th><th>גוף מפרסם</th><th>מועד הגשה</th><th>דחיפות</th><th>החלטה</th><th>מצב התאמה</th><th>התקדמות</th></tr></thead>
+            <tbody id="tender-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <nav class="mobile-nav" aria-label="ניווט תחתון"><a class="is-active" href="tenders.html" aria-current="page"><span aria-hidden="true">▤</span><small>מכרזים</small></a><a href="upload.html"><span aria-hidden="true">↥</span><small>מכרז חדש</small></a><a href="profile.html"><span aria-hidden="true">♙</span><small>פרופיל העסק</small></a></nav>
+    <script type="module" src="js/tenders.js"></script>
+  </body>
+</html>

@@ -41,8 +41,10 @@ test("F22 exposes collapsible summary, dates and guarantees from saved F15 metad
   assert.match(tenderHtml, /אינו ייעוץ משפטי/);
 });
 
-test("M6 does not add M7 tender-list or reminder features", () => {
-  assert.doesNotMatch(uploadHtml + tenderHtml, /רשימת מכרזים|תזכורת במייל/);
+test("M6 screens keep their primary actions after adding M7 navigation", () => {
+  assert.match(uploadHtml, /התחל ניתוח/);
+  assert.match(tenderHtml, /טיפול בדרישות המכרז/);
+  assert.match(uploadHtml + tenderHtml, /href="tenders\.html"/);
 });
 
 test("existing M6 screens use the approved mobile shell and dashboard layout", () => {

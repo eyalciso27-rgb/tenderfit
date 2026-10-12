@@ -1,5 +1,6 @@
 import { CONFIG } from "./config.js";
 import { supabase } from "./supabase.js";
+import { landingPageForProfile } from "../lib/tender-list.js";
 
 const POLL_INTERVAL_MS = 10_000;
 const MAX_MAP_WAIT_MS = 15 * 60_000;
@@ -86,7 +87,12 @@ async function refreshSessionView(session) {
     showLogin();
     return;
   }
-  window.location.replace("upload.html");
+  const { data: profile, error } = await supabase
+    .from("business_profile")
+    .select("legal_name")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+  window.location.replace(error ? "tenders.html" : landingPageForProfile(profile));
 }
 
 async function currentAccessToken() {
