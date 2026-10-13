@@ -1,6 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { GoogleGenAI } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 import Ajv from "ajv";
 
@@ -15,6 +14,7 @@ import { removeGeneratedMissingPlaceholders } from "../lib/business-profile.js";
 import { fillExtractorPrompt, getRegion, prefixRegionRequirementIds } from "../lib/extractor.js";
 import { ensureBusinessFacts } from "../lib/facts.js";
 import { buildFitAnalysisContext, fillFitAnalysisPrompt, validateFitAnalysisSemantics } from "../lib/fit-analysis.js";
+import { createGeminiClient, GEMINI_ROUTE, GeminiClientConfigurationError } from "../lib/gemini-client.js";
 import { normalizeTenderResponses } from "../lib/tender-response.js";
 import { createRegionPdfExcerpt, normalizeExcerptSourcePages } from "../lib/pdf-region.js";
 import { estimateGeminiCost } from "../lib/pricing.js";
@@ -208,8 +208,15 @@ async function updateTender(supabase, tender, patch, conflictMessage = "השלב
   return data;
 }
 
-function createGeminiClient() {
-  return new GoogleGenAI({ apiKey: requireEnvironment("GEMINI_API_KEY") });
+function createConfiguredGeminiClient(route) {
+  try {
+    return createGeminiClient(route);
+  } catch (error) {
+    if (error instanceof GeminiClientConfigurationError) {
+      throw new ApiError(500, "server_not_configured", "השרת אינו מוגדר במלואו.");
+    }
+    throw error;
+  }
 }
 
 function isUnexpiredActiveGeminiFile(tender) {
@@ -356,7 +363,7 @@ async function runUpload(supabase, tender) {
 
   try {
     const { bytes, fileSizeBytes, pdfHash } = await downloadTenderPdf(supabase, tender);
-    const client = createGeminiClient();
+    const client = createConfiguredGeminiClient(GEMINI_ROUTE.PRO);
     const uploaded = await client.files.upload({
       file: new Blob([bytes], { type: "application/pdf" }),
       config: { mimeType: "application/pdf", displayName: `${tender.id}.pdf` },
@@ -533,7 +540,7 @@ async function pollMap(supabase, tender, baseline) {
   }
   let interaction;
   try {
-    interaction = await createGeminiClient().interactions.get(current.interaction_id);
+    interaction = await createConfiguredGeminiClient(GEMINI_ROUTE.PRO).interactions.get(current.interaction_id);
   } catch (error) {
     if (!isGeminiBlobstoreFileError(error)) throw error;
     await failMapInteraction(supabase, tender, null, "gemini_file_reference_failed", {
@@ -606,7 +613,7 @@ async function startMap(supabase, tender, baseline) {
     if (pdfHash !== tender.pdf_hash) {
       throw new ApiError(409, "pdf_changed", "קובץ המכרז השתנה. יש להריץ upload מחדש.");
     }
-    const client = createGeminiClient();
+    const client = createConfiguredGeminiClient(GEMINI_ROUTE.PRO);
     interaction = await client.interactions.create({
       model: baseline.settings.model,
       system_instruction: baseline.systemInstruction,
@@ -737,7 +744,7 @@ async function submitInteraction(supabase, tender, baseline, prompt, region = nu
       };
     }
   }
-  const interaction = await createGeminiClient().interactions.create({
+  const interaction = await createConfiguredGeminiClient(GEMINI_ROUTE.PRO).interactions.create({
     model: baseline.settings.model,
     system_instruction: baseline.systemInstruction,
     input: [createInlinePdfDocument(submittedBytes), { type: "text", text: prompt }],
@@ -806,7 +813,7 @@ async function startMetadata(supabase, tender, baseline) {
 async function pollMetadata(supabase, tender, baseline) {
   const current = stepRecord(tender, "metadata");
   if (!current.interaction_id || !current.sent_at) throw new ApiError(500, "metadata_state_invalid", "סטטוס חילוץ הפרטים אינו תקין.");
-  const interaction = await createGeminiClient().interactions.get(current.interaction_id);
+  const interaction = await createConfiguredGeminiClient(GEMINI_ROUTE.PRO).interactions.get(current.interaction_id);
   if (PENDING_INTERACTION_STATUSES.has(interaction.status)) {
     if (isPendingInteractionExpired(interaction.status, current.sent_at)) {
       await markStepFailed(supabase, tender, "metadata", "metadata_timeout", {
@@ -936,7 +943,7 @@ async function startExtract(supabase, tender, region, baseline) {
 async function pollExtract(supabase, tender, region, baseline) {
   const current = regionRecord(tender, region.region_id);
   if (!current.interaction_id || !current.sent_at) throw new ApiError(500, "extract_state_invalid", "סטטוס חילוץ האזור אינו תקין.");
-  const interaction = await createGeminiClient().interactions.get(current.interaction_id);
+  const interaction = await createConfiguredGeminiClient(GEMINI_ROUTE.PRO).interactions.get(current.interaction_id);
   if (PENDING_INTERACTION_STATUSES.has(interaction.status)) {
     if (isPendingInteractionExpired(interaction.status, current.sent_at)) {
       await markRegionFailed(supabase, tender, region.region_id, "extract_timeout", {
@@ -1122,7 +1129,7 @@ async function startFitAnalysis(supabase, tender, businessFacts, baseline) {
   try {
     const context = buildFitAnalysisContext(tender, businessFacts);
     const prompt = fillFitAnalysisPrompt(baseline.userPrompt, context);
-    interaction = await createGeminiClient().interactions.create({
+    interaction = await createConfiguredGeminiClient(GEMINI_ROUTE.PRO).interactions.create({
       model: baseline.settings.model,
       system_instruction: baseline.systemInstruction,
       input: [{ type: "text", text: prompt }],
@@ -1169,7 +1176,7 @@ async function pollFitAnalysis(supabase, tender, baseline) {
   if (!current.interaction_id || !current.sent_at) {
     throw new ApiError(500, "fit_state_invalid", "תוצאות הבדיקה האוטומטית נשמרו, אבל מצב הסבר ה־AI אינו תקין.");
   }
-  const interaction = await createGeminiClient().interactions.get(current.interaction_id);
+  const interaction = await createConfiguredGeminiClient(GEMINI_ROUTE.PRO).interactions.get(current.interaction_id);
   if (PENDING_INTERACTION_STATUSES.has(interaction.status)) {
     if (isPendingInteractionExpired(interaction.status, current.sent_at)) {
       await markStepFailed(supabase, tender, "compare", "fit_timeout", {

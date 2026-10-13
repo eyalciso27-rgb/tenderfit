@@ -8,6 +8,10 @@ import { fileURLToPath } from "node:url";
 import {
   BaselineIntegrityError,
   loadBaseline,
+  loadExtractorBaseline,
+  loadFitAnalysisBaseline,
+  loadMapperBaseline,
+  loadMetadataBaseline,
   verifyBaselineDirectory,
 } from "../lib/baseline.js";
 
@@ -27,6 +31,19 @@ test("all frozen AI runtime files match their SHA-256 manifests", async () => {
   assert.equal(metadata.manifest.version, "f15-v1.0");
   assert.equal(fitAnalysisV10.manifest.version, "f18-v1.0");
   assert.equal(fitAnalysis.manifest.version, "f18-v1.1");
+});
+
+test("all active AI baselines remain explicitly configured for Gemini Pro", async () => {
+  const baselines = await Promise.all([
+    loadMapperBaseline(),
+    loadExtractorBaseline(),
+    loadMetadataBaseline(),
+    loadFitAnalysisBaseline(),
+  ]);
+
+  for (const baseline of baselines) {
+    assert.equal(baseline.settings.model, "gemini-3.1-pro-preview");
+  }
 });
 
 test("baseline verification rejects a modified runtime file", async (context) => {
